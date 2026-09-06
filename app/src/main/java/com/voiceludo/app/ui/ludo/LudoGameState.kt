@@ -202,13 +202,13 @@ class LudoGameState(
                     val c = e.color?.let { runCatching { LudoColor.valueOf(it) }.getOrNull() } ?: continue
                     rollRequested.value = false
                     isRolling.value = true
-                    // Pehle 950ms tha — user ke mutabiq dice roll ab thori
-                    // tezi se result dikhaye.
-                    delay(550)
+                    // Pehle 950ms, phir 550ms tha — user ne dobara kaha dice roll
+                    // aur thora tez ho, ab aur kam kar diya.
+                    delay(380)
                     isRolling.value = false
                     diceByColor[c] = e.value
                     diceRolled.value = true
-                    delay(350)
+                    delay(250)
                 }
                 "rollAgain" -> {
                     // Informational — savedRolls chain snapshot se hi sync ho jayegi

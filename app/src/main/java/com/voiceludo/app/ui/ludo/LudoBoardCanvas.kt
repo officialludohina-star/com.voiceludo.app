@@ -415,16 +415,48 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
             }
         }
 
+        // BUG FIX: pehle ek cell ke andar tokens ka stack-slot unke "group mein
+        // current index (n)" se milta tha — matlab jab koi ek token us cell se
+        // nikalta (ya koi naya aata) to baaki sab tokens ka index shift ho jata
+        // aur wo bhi (bina khud chale) idhar-udhar "hil" jate the. Ab har token
+        // (color+idx) ko is cell ke andar ek sthiir/permanent slot milta hai jo
+        // sirf tab tak rehta hai jab tak wo token khud us cell mein hai — kisi
+        // aur token ke aane/jaane se yeh slot kabhi nahi badalta.
+        val cellSlotMemory = remember { mutableMapOf<String, MutableMap<String, Int>>() }
+        // Jo cell-keys ab khaali ho chuki hain unki memory hata dete hain (leak na ho).
+        cellSlotMemory.keys.retainAll(pathGroups.keys)
+        val slotOf = HashMap<String, Int>() // "$key|$color|$idx" -> slot
+        pathGroups.forEach { (key, group) ->
+            val slots = cellSlotMemory.getOrPut(key) { mutableMapOf() }
+            val idsNow = group.map { "${it.color}_${it.idx}" }.toSet()
+            slots.keys.retainAll(idsNow) // is cell se nikal chuke tokens ki slot chhor do
+            group.forEach { t ->
+                val id = "${t.color}_${t.idx}"
+                val slot = slots.getOrPut(id) {
+                    // Sabse chhota free slot (0..3) dhoondo jo abhi kisi aur ke paas na ho.
+                    val used = slots.values.toSet()
+                    (0..3).first { it !in used }
+                }
+                slotOf["$key|$id"] = slot
+            }
+        }
+
         // ---- Path/stretch tokens: HTML jaisa hi per-cell wrapper + stack offsets
         pathGroups.values.forEach { group ->
             val total = group.size.coerceAtMost(4)
-            val cfg = STACK_CONFIG.getValue(total)
+            // Jab cell mein 2+ tokens hon to hamesha 4-slot (quadrant) layout istemal
+            // karte hain — taake slot number kabhi "total" par depend na kare (isi
+            // wajah se pehle baaki tokens hilte thay). Akela token ho to purana
+            // centered/bada look (1-slot config) barqarar rehta hai.
+            val cfg = if (total <= 1) STACK_CONFIG.getValue(1) else STACK_CONFIG.getValue(4)
             val first = group.first()
             // Cell box ka top-left corner (HTML ke wrap.style.left/top jaisa)
             val cellLeftDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * first.col
             val cellTopDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * first.row
 
-            group.forEachIndexed { n, t ->
+            group.forEach { t ->
+                val id = "${t.color}_${t.idx}"
+                val n = slotOf["${t.cellKey}|$id"] ?: 0
                 val off = cfg.offsets[n % cfg.offsets.size]
                 val tokenSizeDp = cellDp * (cfg.sizePct / 100f)
                 val centerX = cellLeftDp + cellDp * (off.first / 100f)
@@ -436,11 +468,12 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     state.currentColor == state.myColor &&
                     !state.isMoving.value &&
                     t.idx in state.movable
-                // Ab yeh ring sirf usi player ko, aur sirf tab nazar aati hai
-                // jab dice roll ho chuka ho aur movable set aa chuki ho (yani
-                // ab wahi lamha hai jab token choose karna hai) — roll se pehle
-                // poori turn mein glow/ring bilkul nahi dikhti.
-                val isCurrentTurn = t.color == state.currentColor && t.color == state.myColor && state.movable.isNotEmpty()
+                // Pehle yeh ring sirf tab nazar aati thi jab dice roll ho chuka ho
+                // aur movable set aa chuki ho. User ne kaha jaise hi kisi ki baari
+                // aaye turn ke shuru se hi (roll karne se pehle bhi) uski token ke
+                // gird uske apne ghar/color wali ring nazar aani chahiye — sirf usi
+                // player ko (dusron ko nahi), poori baari ke dauran.
+                val isCurrentTurn = t.color == state.currentColor && t.color == state.myColor && !state.isMoving.value
 
                 // key(color, idx) — token ki asal "identity" (color+idx) se bandha hua
                 // animation-state, iske bagair jab tokens yard se nikalte ya kisi cell
@@ -505,11 +538,11 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 // par ring aati (chahe wo abhi movable ho ya na ho). Ab yard
                 // tokens ko bhi wahi consistent rule di hai.
                 //
-                // PRIVACY + TIMING: ab yeh ring sirf apne hi tokens par, sirf
-                // apni bari mein, aur sirf roll ho chuke hone ke baad (jab
-                // movable list aa chuki ho, yani token choose karna ho) nazar
-                // aati hai — dice roll hone se pehle koi glow nahi dikhti.
-                val isCurrentTurnYard = color == state.currentColor && color == state.myColor && state.movable.isNotEmpty()
+                // PRIVACY + TIMING: yeh ring sirf apne hi tokens par, sirf apni
+                // baari mein — ab poori baari ke dauran (roll se pehle bhi)
+                // nazar aati hai, taake "meri baari hai" turn shuru hote hi
+                // pata chal jaye.
+                val isCurrentTurnYard = color == state.currentColor && color == state.myColor && !state.isMoving.value
 
                 key(color, i) {
                     val animX by animateDpAsState(targetValue = targetX, animationSpec = tween(230), label = "yardTokenX")
