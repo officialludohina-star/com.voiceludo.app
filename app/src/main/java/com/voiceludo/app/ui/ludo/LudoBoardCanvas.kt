@@ -1,8 +1,7 @@
 package com.voiceludo.app.ui.ludo
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
@@ -160,7 +159,9 @@ private fun BoxTokenWithGlow(
     tokenColor: LudoColor,
     imageUrl: String?,
     contentDescription: String,
-    onTap: () -> Unit
+    onTap: () -> Unit,
+    popScale: Float = 1f,
+    popAlpha: Float = 1f
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "tokenGlow")
     val glowScale by infiniteTransition.animateFloat(
@@ -195,10 +196,17 @@ private fun BoxTokenWithGlow(
     )
     val bounceDy = if (isMovable) -(tokenSizeDp * 0.16f) * bounceT else 0.dp
     Box(
-        modifier = Modifier.size(tokenSizeDp * 1.9f).offset(
-            x = animX - (tokenSizeDp * 0.45f),
-            y = animY + bounceDy - (tokenSizeDp * 0.45f)
-        ),
+        modifier = Modifier
+            .size(tokenSizeDp * 1.9f)
+            .offset(
+                x = animX - (tokenSizeDp * 0.45f),
+                y = animY + bounceDy - (tokenSizeDp * 0.45f)
+            )
+            .graphicsLayer {
+                scaleX = popScale
+                scaleY = popScale
+                alpha = popAlpha
+            },
         contentAlignment = Alignment.Center
     ) {
         if (isMovable) {
@@ -481,23 +489,45 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 // purana animateDpAsState reuse kar leta tha, jis se token ki position
                 // baar-baar idhar-udhar "jump/change" hoti dikhti thi.
                 key(t.color, t.idx) {
-                    val animX by animateDpAsState(targetValue = targetX, animationSpec = tween(190), label = "tokenX")
-                    val animY by animateDpAsState(targetValue = targetY, animationSpec = tween(190), label = "tokenY")
-                    // Real board-game token jaisa "hop" — har cell-step par token
-                    // seedha slide karne ki jagah thora upar uchal kar neeche
-                    // aata hai (asal Ludo goti chalne jaisa feel), sirf jab
-                    // token abhi move ho raha ho.
-                    val hop = remember { Animatable(0f) }
-                    LaunchedEffect(targetX, targetY) {
-                        if (state.isMoving.value) {
-                            hop.snapTo(0f)
-                            hop.animateTo(1f, tween(95, easing = LinearOutSlowInEasing))
-                            hop.animateTo(0f, tween(95, easing = FastOutLinearInEasing))
+                    // Normal step-by-step move ke liye chhota, saaf tween.
+                    // Arrow-jump wale token ke liye alag se ek lamba,
+                    // mukammal continuous glide-tween use hota hai (neeche
+                    // dekhein) taake beech mein kahin flicker/disappear
+                    // na ho.
+                    val id = "${t.color}_${t.idx}"
+                    val isGliding = state.arrowGlidingToken.value == id
+                    val posTweenMs = if (isGliding) 480 else 160
+                    val animX by animateDpAsState(
+                        targetValue = targetX,
+                        animationSpec = tween(posTweenMs, easing = FastOutSlowInEasing),
+                        label = "tokenX"
+                    )
+                    val animY by animateDpAsState(
+                        targetValue = targetY,
+                        animationSpec = tween(posTweenMs, easing = FastOutSlowInEasing),
+                        label = "tokenY"
+                    )
+                    val hopDy = 0.dp
+
+                    // Yard se path mein pehli dafa nikalne par (poppingToken match
+                    // hote hi) chhota sa "pop" (fade-in + scale-up) animation —
+                    // taake token achanak (teleport jaisa) nazar aane ke bajaye
+                    // saaf tarah "namudar" hota dikhe.
+                    val isPopping = state.poppingToken.value == id
+                    val popScale = remember { Animatable(1f) }
+                    val popAlpha = remember { Animatable(1f) }
+                    LaunchedEffect(isPopping) {
+                        if (isPopping) {
+                            popScale.snapTo(0.2f)
+                            popAlpha.snapTo(0.2f)
+                            popScale.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+                            popAlpha.animateTo(1f, tween(180, easing = FastOutSlowInEasing))
                         }
                     }
-                    val hopDy = -(tokenSizeDp * 0.32f) * hop.value
 
                     BoxTokenWithGlow(
+                        popScale = popScale.value,
+                        popAlpha = popAlpha.value,
                         tokenSizeDp = tokenSizeDp,
                         animX = animX,
                         animY = animY + hopDy,

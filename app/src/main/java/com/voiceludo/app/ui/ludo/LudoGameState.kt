@@ -57,6 +57,18 @@ class LudoGameState(
     // kabhi dice ghalat/jaldi roll hone jaisa lagta tha.
     var rollRequested = mutableStateOf(false)
     var isMoving = mutableStateOf(false)
+    // Jab koi token yard (ghar) se seedha path ki cell 0 par nikalta hai, is
+    // "$color_$idx" key ko thori der ke liye set karte hain taake
+    // LudoBoardCanvas usi token par ek pop-in (fade+scale) animation dikha
+    // sake — pehle token yard se path mein "achanak" (bina kisi animation ke)
+    // nazar aata tha, ab wo saaf tarah se "nikalta hua" dikhta hai.
+    var poppingToken = mutableStateOf<String?>(null)
+    // Jab token arrow ki wajah se "shortcut" leta hai, is "$color_$idx" key ko
+    // set karte hain taake LudoBoardCanvas us waqt sirf isi token ke liye ek
+    // lamba, mukammal continuous glide-tween use kare (chhote-chhote alag
+    // steps ke bajaye) — taake beech mein kahin bhi token "gayab" (flicker/
+    // disappear) na ho, seedha ek hi silsile mein A se B tak nazar aaye.
+    var arrowGlidingToken = mutableStateOf<String?>(null)
     var movable = mutableStateListOf<Int>()
     var killerFlashPos = mutableStateOf<Int?>(null)
     var killedFlashPos = mutableStateOf<Int?>(null)
@@ -260,29 +272,37 @@ class LudoGameState(
         isMoving.value = true
 
         if (e.from == -1) {
+            // Ghar/yard se nikalna: yard aur path do alag render-trees hain
+            // (alag coordinate system), isliye beech ka "chalna" khud
+            // animate nahi ho sakta — iski jagah token ko path ki cell 0
+            // par pop-in (fade+scale) ke sath "namudar" hote dikhate hain,
+            // taake yeh achanak/teleport jaisa na lage.
+            val key = "${color}_${e.tokenIndex}"
+            poppingToken.value = key
             setPos(0)
-            delay(230)
+            delay(280)
+            poppingToken.value = null
         } else if (e.arrowJumped) {
-            // Arrow-jump: user ka feedback — instant teleport (purana) ajeeb
-            // lagta hai, token ko dikhna chahiye ke wo arrow se guzar kar
-            // agay nikal raha hai. Ab poori doori (chhote se bade step) tez
-            // raftar se cross karte hain (normal chalne se kaafi tez —
-            // "shortcut" ka ehsaas — lekin instant ghayab-nazar nahi hota).
-            var pos = e.from
-            while (pos < e.to) {
-                pos += 1
-                setPos(pos)
-                delay(55)
-            }
-            delay(150)
+            // Arrow-jump: pehle yahan chhote-chhote steps (delay ke sath)
+            // manually chalaye jate thay — har naya step turant Compose ki
+            // purani animation cancel kar deta tha, jis se beech mein token
+            // ek pal ke liye "gayab/flicker" jaisa nazar aata tha. Ab sirf
+            // seedha final target set karte hain, aur BoardCanvas isi ek
+            // move ke liye ek lamba, mukammal continuous glide-tween
+            // (koi beech mein rukawat/restart nahi) chalata hai — taake
+            // token A se B tak ek hi seedhi, sabit harkat mein nazar aaye.
+            val key = "${color}_${e.tokenIndex}"
+            arrowGlidingToken.value = key
+            setPos(e.to)
+            delay(480)
+            arrowGlidingToken.value = null
         } else {
-            // Normal move: pehle 150ms/step tha, thora slow kar diya taake
-            // token step-step chalta hua saaf nazar aaye, jump jaisa na lage.
+            // Normal move: har cell ek-ek karke, saaf step-step chal ke.
             var pos = e.from
             while (pos < e.to) {
                 pos += 1
                 setPos(pos)
-                delay(210)
+                delay(220)
             }
         }
         setPos(e.to)
