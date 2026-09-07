@@ -8,6 +8,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -556,11 +558,15 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                                 // SAFETY NET: agar yeh coroutine beech mein hi cancel ho
                                 // jaye (Compose recomposition/key-churn ki wajah se), to
                                 // bhi token hamesha poori tarah nazar aane wali (scale=1,
-                                // alpha=1) state par wapis aa jaye — kabhi bhi hamesha ke
-                                // liye halka/invisible na reh jaye ("token hide ho jati
-                                // hai" wali shikayat isi ka nateeja ho sakti thi).
-                                popScale.snapTo(1f)
-                                popAlpha.snapTo(1f)
+                                // alpha=1) state par wapis aa jaye. NonCancellable zaroori
+                                // hai — warna cancellation ke baad koi bhi suspend call
+                                // (snapTo bhi) turant dobara cancel ho kar KUCH NAHI karta,
+                                // aur token hamesha ke liye halka/ghost jaisa (jaisa
+                                // screenshot mein dikha) reh jata — yehi asal bug tha.
+                                withContext(NonCancellable) {
+                                    popScale.snapTo(1f)
+                                    popAlpha.snapTo(1f)
+                                }
                             }
                         }
                     }

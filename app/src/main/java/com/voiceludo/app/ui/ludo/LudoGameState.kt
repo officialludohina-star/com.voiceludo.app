@@ -280,7 +280,15 @@ class LudoGameState(
             val key = "${color}_${e.tokenIndex}"
             poppingToken.value = key
             setPos(0)
-            delay(280)
+            // Pop-in animation (LudoBoardCanvas mein) total ~440ms leti hai
+            // (260ms scale + 180ms alpha, sequentially). Pehle yahan sirf
+            // 280ms delay tha — matlab animation ABHI adhoori hoti (alpha
+            // apne shuru, ~0.2, ke qareeb hi hota) jab poppingToken reset ho
+            // jati, jis se animation cancel ho jati aur token hamesha ke liye
+            // halka/ghost jaisa reh jata ("token nikalte hi hide ho jati
+            // hai" wali asal wajah yehi thi). Ab poori animation duration se
+            // thora zyada wait karte hain taake wo hamesha mukammal ho.
+            delay(460)
             poppingToken.value = null
             // BUG FIX: agar exit wali cell (0) khud arrow-mode mein ek arrow
             // nikli (yani e.to != 0), to pehle yahan seedha e.to par "jump"
