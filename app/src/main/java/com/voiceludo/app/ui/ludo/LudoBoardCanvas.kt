@@ -512,7 +512,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     // dekhein) taake beech mein kahin flicker/disappear
                     // na ho.
                     val id = "${t.color}_${t.idx}"
-                    val isGliding = state.arrowGlidingToken.value == id
+                    val isGliding = id in state.arrowGlidingTokens.value
                     val posTweenMs = if (isGliding) 480 else 160
                     val animX by animateDpAsState(
                         targetValue = targetX,
@@ -542,7 +542,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     // hote hi) chhota sa "pop" (fade-in + scale-up) animation —
                     // taake token achanak (teleport jaisa) nazar aane ke bajaye
                     // saaf tarah "namudar" hota dikhe.
-                    val isPopping = state.poppingToken.value == id
+                    val isPopping = id in state.poppingTokens.value
                     val popScale = remember { Animatable(1f) }
                     val popAlpha = remember { Animatable(1f) }
                     LaunchedEffect(isPopping) {

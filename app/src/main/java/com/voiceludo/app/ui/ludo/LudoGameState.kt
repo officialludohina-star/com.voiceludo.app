@@ -62,13 +62,27 @@ class LudoGameState(
     // LudoBoardCanvas usi token par ek pop-in (fade+scale) animation dikha
     // sake — pehle token yard se path mein "achanak" (bina kisi animation ke)
     // nazar aata tha, ab wo saaf tarah se "nikalta hua" dikhta hai.
-    var poppingToken = mutableStateOf<String?>(null)
+    //
+    // BUG FIX: pehle yeh EK SINGLE String? tha — matlab ek waqt mein sirf EK
+    // hi token "popping" ho sakta tha. Jab 1 se zyada token thori thori der
+    // ke fasle par yard se nikalte (jaise consecutive 6 par 2 tokens exit, ya
+    // do alag onServerEvents batches ek dusre ke upar overlap ho jayein), to
+    // dusre token ka pop set hote hi pehle wale ka poppingToken khud-b-khud
+    // "null"/kisi aur key mein badal jata — jis se pehle token ka fade-in/
+    // scale-up animation (LaunchedEffect(isPopping)) BEECH MEIN CANCEL ho
+    // jata aur wo token hamesha ke liye adhoori (chhoti/dhundli, halka sa
+    // "gayab" jaisa) state par atak jata — sirf pehle wale token ki tarah
+    // poora nazar aata, baaki gayab/dhundle reh jate. Ab yeh ek SET hai —
+    // kitne bhi tokens ek sath "popping" ho sakte hain, ek dusre ko cancel
+    // nahi karte.
+    var poppingTokens = mutableStateOf<Set<String>>(emptySet())
     // Jab token arrow ki wajah se "shortcut" leta hai, is "$color_$idx" key ko
     // set karte hain taake LudoBoardCanvas us waqt sirf isi token ke liye ek
     // lamba, mukammal continuous glide-tween use kare (chhote-chhote alag
     // steps ke bajaye) — taake beech mein kahin bhi token "gayab" (flicker/
     // disappear) na ho, seedha ek hi silsile mein A se B tak nazar aaye.
-    var arrowGlidingToken = mutableStateOf<String?>(null)
+    // (Same wajah se yeh bhi ek Set hai, single value nahi — neeche dekhein.)
+    var arrowGlidingTokens = mutableStateOf<Set<String>>(emptySet())
     var movable = mutableStateListOf<Int>()
     var killerFlashPos = mutableStateOf<Int?>(null)
     var killedFlashPos = mutableStateOf<Int?>(null)
@@ -278,10 +292,10 @@ class LudoGameState(
             // par pop-in (fade+scale) ke sath "namudar" hote dikhate hain,
             // taake yeh achanak/teleport jaisa na lage.
             val key = "${color}_${e.tokenIndex}"
-            poppingToken.value = key
+            poppingTokens.value = poppingTokens.value + key
             setPos(0)
             delay(280)
-            poppingToken.value = null
+            poppingTokens.value = poppingTokens.value - key
             // BUG FIX: agar exit wali cell (0) khud arrow-mode mein ek arrow
             // nikli (yani e.to != 0), to pehle yahan seedha e.to par "jump"
             // ho jata tha — koi animation hi nahi hoti thi. Ab pop-in ke
@@ -299,10 +313,10 @@ class LudoGameState(
                         setPos(pos)
                         delay(220)
                     }
-                    arrowGlidingToken.value = key
+                    arrowGlidingTokens.value = arrowGlidingTokens.value + key
                     setPos(e.to)
                     delay(480)
-                    arrowGlidingToken.value = null
+                    arrowGlidingTokens.value = arrowGlidingTokens.value - key
                 } else {
                     var pos = 0
                     while (pos < e.to) {
@@ -327,10 +341,10 @@ class LudoGameState(
                 setPos(pos)
                 delay(220)
             }
-            arrowGlidingToken.value = key
+            arrowGlidingTokens.value = arrowGlidingTokens.value + key
             setPos(e.to)
             delay(480)
-            arrowGlidingToken.value = null
+            arrowGlidingTokens.value = arrowGlidingTokens.value - key
         } else {
             // Normal move: har cell ek-ek karke, saaf step-step chal ke.
             var pos = e.from
