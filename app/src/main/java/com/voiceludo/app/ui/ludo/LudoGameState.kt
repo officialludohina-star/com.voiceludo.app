@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.channels.Channel
 
 // pos: -1 = yard, 0..50 = ring (color ke apne start se relative), 51..55 = home-stretch,
 // 56 = finish (ghar pahunch gaya)
@@ -43,29 +42,6 @@ class LudoGameState(
 ) {
     private val scope = CoroutineScope(Dispatchers.Main)
 
-    // BUG FIX (asal wajah "token gayab ho jati hai" ki): pehle har
-    // onServerEvents call apna ALAG `scope.launch { playEvents(...) }`
-    // chalata tha. Agar bekend se 2 events-batches thodi thodi der ke fasle
-    // par aayen (jaise ek token exit hone ke turant baad doosre ka move, ya
-    // dice + move ek dusre ke peeche), to dono coroutines EK SATH (parallel)
-    // chalte — aur "dheemi" (zyada delay/animation wali) batch agar "tez"
-    // (kam delay wali) batch ke BAAD mein khatam hoti, to woh apni PURANI
-    // finalSnapshot se sync kar ke abhi-abhi update hui NAYI state ko WAPIS
-    // purani position par overwrite/revert kar deti — is se token
-    // "gayab"/yard mein wapis chala gaya jaisa dikhta. Ab sab events-batches
-    // ek CHANNEL (queue) mein daalte hain aur EK HI consumer coroutine unhein
-    // hamesha sahi tarteeb (order) mein, ek ke baad ek (poora khatam hone tak
-    // agla shuru nahi hota) process karta hai — kabhi overlap nahi hota.
-    private val eventQueue = Channel<Pair<List<GameEvent>, GameSnapshot>>(Channel.UNLIMITED)
-
-    init {
-        scope.launch {
-            for ((events, finalSnapshot) in eventQueue) {
-                playEvents(events, finalSnapshot)
-            }
-        }
-    }
-
     val tokens = mutableStateMapOf<LudoColor, MutableList<Int>>().apply {
         players.forEach { c -> put(c, mutableStateListOf(-1, -1, -1, -1)) }
     }
@@ -86,27 +62,13 @@ class LudoGameState(
     // LudoBoardCanvas usi token par ek pop-in (fade+scale) animation dikha
     // sake — pehle token yard se path mein "achanak" (bina kisi animation ke)
     // nazar aata tha, ab wo saaf tarah se "nikalta hua" dikhta hai.
-    //
-    // BUG FIX: pehle yeh EK SINGLE String? tha — matlab ek waqt mein sirf EK
-    // hi token "popping" ho sakta tha. Jab 1 se zyada token thori thori der
-    // ke fasle par yard se nikalte (jaise consecutive 6 par 2 tokens exit, ya
-    // do alag onServerEvents batches ek dusre ke upar overlap ho jayein), to
-    // dusre token ka pop set hote hi pehle wale ka poppingToken khud-b-khud
-    // "null"/kisi aur key mein badal jata — jis se pehle token ka fade-in/
-    // scale-up animation (LaunchedEffect(isPopping)) BEECH MEIN CANCEL ho
-    // jata aur wo token hamesha ke liye adhoori (chhoti/dhundli, halka sa
-    // "gayab" jaisa) state par atak jata — sirf pehle wale token ki tarah
-    // poora nazar aata, baaki gayab/dhundle reh jate. Ab yeh ek SET hai —
-    // kitne bhi tokens ek sath "popping" ho sakte hain, ek dusre ko cancel
-    // nahi karte.
-    var poppingTokens = mutableStateOf<Set<String>>(emptySet())
+    var poppingToken = mutableStateOf<String?>(null)
     // Jab token arrow ki wajah se "shortcut" leta hai, is "$color_$idx" key ko
     // set karte hain taake LudoBoardCanvas us waqt sirf isi token ke liye ek
     // lamba, mukammal continuous glide-tween use kare (chhote-chhote alag
     // steps ke bajaye) — taake beech mein kahin bhi token "gayab" (flicker/
     // disappear) na ho, seedha ek hi silsile mein A se B tak nazar aaye.
-    // (Same wajah se yeh bhi ek Set hai, single value nahi — neeche dekhein.)
-    var arrowGlidingTokens = mutableStateOf<Set<String>>(emptySet())
+    var arrowGlidingToken = mutableStateOf<String?>(null)
     var movable = mutableStateListOf<Int>()
     var killerFlashPos = mutableStateOf<Int?>(null)
     var killedFlashPos = mutableStateOf<Int?>(null)
@@ -239,11 +201,10 @@ class LudoGameState(
     }
 
     // Server ke "events" message par LudoGameScreen isay call karta hai — events ko
-    // queue mein daal dete hain, taake ek hi consumer coroutine unhein sahi
-    // tarteeb mein, ek ek karke (bina overlap ke) animate/play kare, phir final
-    // snapshot se sync kar ke pakka kare ke state hoobahoo server jaisi hi hai.
+    // ek ek karke animate karte hue play karta hai, phir final snapshot se sync kar
+    // ke pakka karta hai ke state hoobahoo server jaisi hi hai.
     fun onServerEvents(events: List<GameEvent>, finalSnapshot: GameSnapshot) {
-        eventQueue.trySend(events to finalSnapshot)
+        scope.launch { playEvents(events, finalSnapshot) }
     }
 
     private suspend fun playEvents(events: List<GameEvent>, finalSnapshot: GameSnapshot) {
@@ -317,10 +278,10 @@ class LudoGameState(
             // par pop-in (fade+scale) ke sath "namudar" hote dikhate hain,
             // taake yeh achanak/teleport jaisa na lage.
             val key = "${color}_${e.tokenIndex}"
-            poppingTokens.value = poppingTokens.value + key
+            poppingToken.value = key
             setPos(0)
             delay(280)
-            poppingTokens.value = poppingTokens.value - key
+            poppingToken.value = null
             // BUG FIX: agar exit wali cell (0) khud arrow-mode mein ek arrow
             // nikli (yani e.to != 0), to pehle yahan seedha e.to par "jump"
             // ho jata tha — koi animation hi nahi hoti thi. Ab pop-in ke
@@ -338,10 +299,10 @@ class LudoGameState(
                         setPos(pos)
                         delay(220)
                     }
-                    arrowGlidingTokens.value = arrowGlidingTokens.value + key
+                    arrowGlidingToken.value = key
                     setPos(e.to)
                     delay(480)
-                    arrowGlidingTokens.value = arrowGlidingTokens.value - key
+                    arrowGlidingToken.value = null
                 } else {
                     var pos = 0
                     while (pos < e.to) {
@@ -366,10 +327,10 @@ class LudoGameState(
                 setPos(pos)
                 delay(220)
             }
-            arrowGlidingTokens.value = arrowGlidingTokens.value + key
+            arrowGlidingToken.value = key
             setPos(e.to)
             delay(480)
-            arrowGlidingTokens.value = arrowGlidingTokens.value - key
+            arrowGlidingToken.value = null
         } else {
             // Normal move: har cell ek-ek karke, saaf step-step chal ke.
             var pos = e.from

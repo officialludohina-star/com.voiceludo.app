@@ -512,7 +512,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     // dekhein) taake beech mein kahin flicker/disappear
                     // na ho.
                     val id = "${t.color}_${t.idx}"
-                    val isGliding = id in state.arrowGlidingTokens.value
+                    val isGliding = state.arrowGlidingToken.value == id
                     val posTweenMs = if (isGliding) 480 else 160
                     val animX by animateDpAsState(
                         targetValue = targetX,
@@ -542,15 +542,26 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     // hote hi) chhota sa "pop" (fade-in + scale-up) animation —
                     // taake token achanak (teleport jaisa) nazar aane ke bajaye
                     // saaf tarah "namudar" hota dikhe.
-                    val isPopping = id in state.poppingTokens.value
+                    val isPopping = state.poppingToken.value == id
                     val popScale = remember { Animatable(1f) }
                     val popAlpha = remember { Animatable(1f) }
                     LaunchedEffect(isPopping) {
                         if (isPopping) {
                             popScale.snapTo(0.2f)
                             popAlpha.snapTo(0.2f)
-                            popScale.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
-                            popAlpha.animateTo(1f, tween(180, easing = FastOutSlowInEasing))
+                            try {
+                                popScale.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+                                popAlpha.animateTo(1f, tween(180, easing = FastOutSlowInEasing))
+                            } finally {
+                                // SAFETY NET: agar yeh coroutine beech mein hi cancel ho
+                                // jaye (Compose recomposition/key-churn ki wajah se), to
+                                // bhi token hamesha poori tarah nazar aane wali (scale=1,
+                                // alpha=1) state par wapis aa jaye — kabhi bhi hamesha ke
+                                // liye halka/invisible na reh jaye ("token hide ho jati
+                                // hai" wali shikayat isi ka nateeja ho sakti thi).
+                                popScale.snapTo(1f)
+                                popAlpha.snapTo(1f)
+                            }
                         }
                     }
 
