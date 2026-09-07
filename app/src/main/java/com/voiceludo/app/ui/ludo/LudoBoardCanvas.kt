@@ -250,6 +250,13 @@ private fun BoxTokenWithGlow(
                 .size(tokenSizeDp)
                 .clip(CircleShape)
                 .background(ludoColorOf(tokenColor))
+                // Safety border: agar kabhi token ki asal image (piece-*.webp)
+                // load na ho paye, to token apne hi color ke background wale
+                // cell mein bilkul blend ho kar "ghayab" jaisa lagta tha
+                // (jaise yellow token yellow home-path par). Ab hamesha ek
+                // white outline hota hai taake token kisi bhi background par
+                // saaf nazar aaye, image load ho ya na ho.
+                .border(1.5.dp, Color.White, CircleShape)
                 .clickable(enabled = isMovable, onClick = onTap)
         )
     }
@@ -476,11 +483,11 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 val id = "${t.color}_${t.idx}"
                 val n = slotOf["${t.cellKey}|$id"] ?: 0
                 val off = cfg.offsets[n % cfg.offsets.size]
-                val tokenSizeDp = cellDp * (cfg.sizePct / 100f)
+                val rawTokenSizeDp = cellDp * (cfg.sizePct / 100f)
                 val centerX = cellLeftDp + cellDp * (off.first / 100f)
                 val centerY = cellTopDp + cellDp * (off.second / 100f)
-                val targetX = centerX - tokenSizeDp / 2
-                val targetY = centerY - tokenSizeDp / 2
+                val targetX = centerX - rawTokenSizeDp / 2
+                val targetY = centerY - rawTokenSizeDp / 2
 
                 val isMovable = t.color == state.currentColor &&
                     state.currentColor == state.myColor &&
@@ -517,6 +524,18 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         animationSpec = tween(posTweenMs, easing = FastOutSlowInEasing),
                         label = "tokenY"
                     )
+                    // BUG FIX: pehle jab kisi cell mein token aata/jata (jaise
+                    // koi token guzarte hue thodi der ke liye usi cell par
+                    // aa jaye) to us cell ke sab tokens ka size (1-token wala
+                    // bada layout <-> 2+ tokens wala chhota quadrant layout)
+                    // ACHANAK badal jata — "choti-bari" hoti dikhti thi. Ab
+                    // size bhi animate hoti hai, taake yeh tabdeeli hamesha
+                    // smooth ho, achanak jhatka na lage.
+                    val animSize by animateDpAsState(
+                        targetValue = rawTokenSizeDp,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "tokenSize"
+                    )
                     val hopDy = 0.dp
 
                     // Yard se path mein pehli dafa nikalne par (poppingToken match
@@ -538,7 +557,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     BoxTokenWithGlow(
                         popScale = popScale.value,
                         popAlpha = popAlpha.value,
-                        tokenSizeDp = tokenSizeDp,
+                        tokenSizeDp = animSize,
                         animX = animX,
                         animY = animY + hopDy,
                         isMovable = isMovable,

@@ -44,6 +44,11 @@ data class GameEvent(
     val to: Int = 0,
     val captured: List<String> = emptyList(),
     val arrowJumped: Boolean = false,
+    // arrowAt — jis cell par arrow lagi thi (jump se theek pehle) — client
+    // isay use kar ke pehle wahan tak normal step-step chalta hai, phir sirf
+    // wahan se aage (jumped-to `to` tak) hi disappear/reappear ka "magic"
+    // effect dikhata hai. Poora move ek hi lambi glide nahi hoti.
+    val arrowAt: Int = 0,
     val magicBonus: Boolean = false,
     val reachedHome: Boolean = false,
     val movable: List<Int> = emptyList(),
@@ -503,6 +508,7 @@ object BackendClient {
                 to = e.optInt("to", -1),
                 captured = jsonArrayToStringList(e.optJSONArray("captured")),
                 arrowJumped = e.optBoolean("arrowJumped"),
+                arrowAt = e.optInt("arrowAt"),
                 magicBonus = e.optBoolean("magicBonus"),
                 reachedHome = e.optBoolean("reachedHome"),
                 movable = jsonArrayToIntList(e.optJSONArray("movable")),

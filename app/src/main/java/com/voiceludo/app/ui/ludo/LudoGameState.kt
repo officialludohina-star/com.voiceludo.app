@@ -290,6 +290,15 @@ class LudoGameState(
             // achanak "jump" na kare.
             if (e.to > 0) {
                 if (e.arrowJumped) {
+                    // User ne kaha: pehle arrow-cell tak bhi normal step-step
+                    // chalna chahiye (na ke seedha final position par glide) —
+                    // sirf arrow-cell se aage wale hisse mein "magic" jump ho.
+                    var pos = 0
+                    while (pos < e.arrowAt) {
+                        pos += 1
+                        setPos(pos)
+                        delay(220)
+                    }
                     arrowGlidingToken.value = key
                     setPos(e.to)
                     delay(480)
@@ -304,15 +313,20 @@ class LudoGameState(
                 }
             }
         } else if (e.arrowJumped) {
-            // Arrow-jump: pehle yahan chhote-chhote steps (delay ke sath)
-            // manually chalaye jate thay — har naya step turant Compose ki
-            // purani animation cancel kar deta tha, jis se beech mein token
-            // ek pal ke liye "gayab/flicker" jaisa nazar aata tha. Ab sirf
-            // seedha final target set karte hain, aur BoardCanvas isi ek
-            // move ke liye ek lamba, mukammal continuous glide-tween
-            // (koi beech mein rukawat/restart nahi) chalata hai — taake
-            // token A se B tak ek hi seedhi, sabit harkat mein nazar aaye.
+            // Arrow-jump: pehle poora move (from -> to) ek hi lambi glide
+            // hoti thi. User ne kaha token yahan bhi step-step chalta dikhe
+            // — isliye ab pehle normal step-step se arrow-cell (arrowAt) tak
+            // jate hain, aur sirf arrow-cell se aage (asal "magic" wala
+            // hissa, arrowAt -> to) ek chhota glide/pop effect hota hai —
+            // taake saaf lage ke "yahan arrow lagi, isliye aage nikal gaya",
+            // na ke poora rasta hi gayab ho kar tay ho jaye.
             val key = "${color}_${e.tokenIndex}"
+            var pos = e.from
+            while (pos < e.arrowAt) {
+                pos += 1
+                setPos(pos)
+                delay(220)
+            }
             arrowGlidingToken.value = key
             setPos(e.to)
             delay(480)
