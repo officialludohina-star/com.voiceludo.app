@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
 
 // pos: -1 = yard, 0..50 = ring (color ke apne start se relative), 51..55 = home-stretch,
 // 56 = finish (ghar pahunch gaya)
@@ -41,6 +42,29 @@ class LudoGameState(
     val myColor: LudoColor
 ) {
     private val scope = CoroutineScope(Dispatchers.Main)
+
+    // BUG FIX (asal wajah "token gayab ho jati hai" ki): pehle har
+    // onServerEvents call apna ALAG `scope.launch { playEvents(...) }`
+    // chalata tha. Agar bekend se 2 events-batches thodi thodi der ke fasle
+    // par aayen (jaise ek token exit hone ke turant baad doosre ka move, ya
+    // dice + move ek dusre ke peeche), to dono coroutines EK SATH (parallel)
+    // chalte — aur "dheemi" (zyada delay/animation wali) batch agar "tez"
+    // (kam delay wali) batch ke BAAD mein khatam hoti, to woh apni PURANI
+    // finalSnapshot se sync kar ke abhi-abhi update hui NAYI state ko WAPIS
+    // purani position par overwrite/revert kar deti — is se token
+    // "gayab"/yard mein wapis chala gaya jaisa dikhta. Ab sab events-batches
+    // ek CHANNEL (queue) mein daalte hain aur EK HI consumer coroutine unhein
+    // hamesha sahi tarteeb (order) mein, ek ke baad ek (poora khatam hone tak
+    // agla shuru nahi hota) process karta hai — kabhi overlap nahi hota.
+    private val eventQueue = Channel<Pair<List<GameEvent>, GameSnapshot>>(Channel.UNLIMITED)
+
+    init {
+        scope.launch {
+            for ((events, finalSnapshot) in eventQueue) {
+                playEvents(events, finalSnapshot)
+            }
+        }
+    }
 
     val tokens = mutableStateMapOf<LudoColor, MutableList<Int>>().apply {
         players.forEach { c -> put(c, mutableStateListOf(-1, -1, -1, -1)) }
@@ -215,10 +239,11 @@ class LudoGameState(
     }
 
     // Server ke "events" message par LudoGameScreen isay call karta hai — events ko
-    // ek ek karke animate karte hue play karta hai, phir final snapshot se sync kar
-    // ke pakka karta hai ke state hoobahoo server jaisi hi hai.
+    // queue mein daal dete hain, taake ek hi consumer coroutine unhein sahi
+    // tarteeb mein, ek ek karke (bina overlap ke) animate/play kare, phir final
+    // snapshot se sync kar ke pakka kare ke state hoobahoo server jaisi hi hai.
     fun onServerEvents(events: List<GameEvent>, finalSnapshot: GameSnapshot) {
-        scope.launch { playEvents(events, finalSnapshot) }
+        eventQueue.trySend(events to finalSnapshot)
     }
 
     private suspend fun playEvents(events: List<GameEvent>, finalSnapshot: GameSnapshot) {
