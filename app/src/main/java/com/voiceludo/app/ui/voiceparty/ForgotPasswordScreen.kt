@@ -63,7 +63,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                 is ServerMessage.Auth -> {
                     loading = false
                     AccountStore.saveSession(context, "gmail", email)
-                    SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds)
+                    SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds, msg.gameId)
                     done = true
                 }
                 is ServerMessage.Err -> {

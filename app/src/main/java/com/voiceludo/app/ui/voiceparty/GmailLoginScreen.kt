@@ -61,7 +61,7 @@ fun GmailLoginScreen(navController: NavController) {
                     loading = false
                     connectionLost = false
                     AccountStore.saveSession(context, "gmail", email)
-                    SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds)
+                    SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds, msg.gameId)
                     navController.navigate("vp_home")
                 }
                 is ServerMessage.Err -> {

@@ -79,6 +79,10 @@ data class GameSnapshot(
 sealed class ServerMessage {
     data class Auth(
         val playerId: String,
+        // gameId — user-facing unique numeric ID (jaise "738294156"), bekend
+        // se milta hai. Profile screen ke neeche yeh dikhaya jata hai (copy
+        // button ke saath) taake dost isay add kar sakein.
+        val gameId: Long,
         val authToken: String,
         val coins: Long,
         val diamonds: Long,
@@ -151,6 +155,10 @@ object BackendClient {
 
     // Session — jab tak app khuli hai / socket connected hai, yehi asal account hai.
     var playerId: String? = null; private set
+    // gameId — user-facing numeric ID (Game ID), profile screen par copy ke
+    // liye dikhaya jata hai. 0 matlab abhi tak nahi mila (auth response ka
+    // intezar hai).
+    var gameId: Long = 0; private set
     var authToken: String? = null; private set
     var coins: Long = 0; private set
     var diamonds: Long = 0; private set
@@ -513,6 +521,7 @@ object BackendClient {
             when (obj.optString("type")) {
                 "auth" -> {
                     playerId = obj.optString("player_id")
+                    gameId = obj.optLong("game_id")
                     authToken = obj.optString("auth_token")
                     coins = obj.optLong("coins")
                     diamonds = obj.optLong("diamonds")
@@ -520,7 +529,7 @@ object BackendClient {
                     myAvatar = obj.optString("avatar")
                     authed = true
                     flushPending()
-                    ServerMessage.Auth(playerId!!, authToken!!, coins, diamonds, myName, myAvatar)
+                    ServerMessage.Auth(playerId!!, gameId, authToken!!, coins, diamonds, myName, myAvatar)
                 }
                 "error" -> ServerMessage.Err(obj.optString("message"))
                 "waiting" -> ServerMessage.Waiting(obj.optString("message"))
@@ -590,6 +599,7 @@ object BackendClient {
                     // session state bhi turant clear kar dete hain taake app dobara
                     // isi purani auth se kuch bhejne ki koshish na kare.
                     playerId = null
+                    gameId = 0
                     authToken = null
                     inGame = false
                     authed = false

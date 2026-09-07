@@ -25,7 +25,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -102,7 +104,17 @@ private val CardFieldBoxBorder = Color(0xFFd7ecdf)
 @Composable
 fun ProfileEditScreen(navController: NavController) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     var profile by remember { mutableStateOf(ProfileStore.get(context)) }
+    // Game ID — bekend se milta hai (BackendClient.gameId). Agar kisi wajah se
+    // abhi tak load nahi hui (jaise app dobara khuli aur auth response ka
+    // intezar hai), to locally save ki hui id (SessionStore) fallback ke
+    // taur par dikha dete hain.
+    val gameId = remember {
+        BackendClient.gameId.takeIf { it > 0 }
+            ?: com.voiceludo.app.net.SessionStore.getGameId(context)
+    }
+    var idCopied by remember { mutableStateOf(false) }
 
     var showNameDialog by remember { mutableStateOf(false) }
     var showBioDialog by remember { mutableStateOf(false) }
@@ -272,6 +284,35 @@ fun ProfileEditScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+            }
+
+            // ---- Game ID: profile picture ke neeche, tap karte hi copy ho jati
+            // hai (dost isay add karne ke liye maang sakte hain). ----
+            if (gameId > 0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            clipboard.setText(AnnotatedString(gameId.toString()))
+                            idCopied = true
+                        },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "ID: $gameId",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (idCopied) "\u2713" else "\uD83D\uDCCB",
+                        color = if (idCopied) ProfileGreenAccent else Color.White,
+                        fontSize = 13.sp
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
             }
 
             Spacer(Modifier.height(8.dp))

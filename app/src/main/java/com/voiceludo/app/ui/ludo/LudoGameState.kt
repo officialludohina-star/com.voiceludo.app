@@ -282,6 +282,27 @@ class LudoGameState(
             setPos(0)
             delay(280)
             poppingToken.value = null
+            // BUG FIX: agar exit wali cell (0) khud arrow-mode mein ek arrow
+            // nikli (yani e.to != 0), to pehle yahan seedha e.to par "jump"
+            // ho jata tha — koi animation hi nahi hoti thi. Ab pop-in ke
+            // baad bhi wahi normal step-by-step (ya arrow ho to glide)
+            // harkat hoti hai, taake yard se nikalte hi token kabhi bhi
+            // achanak "jump" na kare.
+            if (e.to > 0) {
+                if (e.arrowJumped) {
+                    arrowGlidingToken.value = key
+                    setPos(e.to)
+                    delay(480)
+                    arrowGlidingToken.value = null
+                } else {
+                    var pos = 0
+                    while (pos < e.to) {
+                        pos += 1
+                        setPos(pos)
+                        delay(220)
+                    }
+                }
+            }
         } else if (e.arrowJumped) {
             // Arrow-jump: pehle yahan chhote-chhote steps (delay ke sath)
             // manually chalaye jate thay — har naya step turant Compose ki

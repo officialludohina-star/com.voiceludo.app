@@ -25,7 +25,8 @@ object SessionStore {
         name: String,
         avatar: String,
         coins: Long,
-        diamonds: Long
+        diamonds: Long,
+        gameId: Long = 0
     ) {
         prefs(context).edit()
             .putString("player_id", playerId)
@@ -34,11 +35,13 @@ object SessionStore {
             .putString("avatar", avatar)
             .putLong("coins", coins)
             .putLong("diamonds", diamonds)
+            .putLong("game_id", gameId)
             .apply()
     }
 
     fun getToken(context: Context): String? = prefs(context).getString("auth_token", null)
     fun getPlayerId(context: Context): String? = prefs(context).getString("player_id", null)
+    fun getGameId(context: Context): Long = prefs(context).getLong("game_id", 0)
     fun getName(context: Context): String = prefs(context).getString("name", "") ?: ""
     fun getAvatar(context: Context): String = prefs(context).getString("avatar", "") ?: ""
     fun getCoins(context: Context): Long = prefs(context).getLong("coins", 0)

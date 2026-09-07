@@ -450,19 +450,29 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
         }
 
         // ---- Path/stretch tokens: HTML jaisa hi per-cell wrapper + stack offsets
-        pathGroups.values.forEach { group ->
+        //
+        // BUG FIX: pehle yeh ek NESTED forEach tha — `pathGroups.values.forEach { group ->
+        // group.forEach { t -> key(t.color, t.idx) { ... } } }`. Jab koi token
+        // apna cell badalta (jaise arrow-jump se cell 4 se seedha cell 9 par), wo
+        // ek group ki list se hat kar doosre group ki list mein chala jata — aur
+        // Compose ke liye yeh cell-group ka forEach hi token ki composable
+        // "jagah" (position in tree) tha. Isliye purana composable (apni chalti
+        // hui animateDpAsState animation ke sath) DISPOSE ho jata aur nayi cell
+        // ke liye ek BILKUL NAYA composable bin kisi animation ke seedha final
+        // position par mount hota — yehi wajah thi token ke "gayab ho kar doosri
+        // jagah nikal aane" ki. Ab sab path-tokens ko ek hi FLAT list mein
+        // (cell-grouping se bahar) render karte hain, taake `key(color, idx)`
+        // hamesha ek hi, sthiir jagah par rahe chahe token kisi bhi cell mein ho
+        // — isi se animateDpAsState purani se nayi position tak sahi se glide
+        // kar pata hai, cell badalne par bhi.
+        pathGroups.values.flatten().forEach { t ->
+            val group = pathGroups.getValue(t.cellKey)
             val total = group.size.coerceAtMost(4)
-            // Jab cell mein 2+ tokens hon to hamesha 4-slot (quadrant) layout istemal
-            // karte hain — taake slot number kabhi "total" par depend na kare (isi
-            // wajah se pehle baaki tokens hilte thay). Akela token ho to purana
-            // centered/bada look (1-slot config) barqarar rehta hai.
             val cfg = if (total <= 1) STACK_CONFIG.getValue(1) else STACK_CONFIG.getValue(4)
-            val first = group.first()
-            // Cell box ka top-left corner (HTML ke wrap.style.left/top jaisa)
-            val cellLeftDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * first.col
-            val cellTopDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * first.row
+            val cellLeftDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * t.col
+            val cellTopDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * t.row
 
-            group.forEach { t ->
+            run {
                 val id = "${t.color}_${t.idx}"
                 val n = slotOf["${t.cellKey}|$id"] ?: 0
                 val off = cfg.offsets[n % cfg.offsets.size]

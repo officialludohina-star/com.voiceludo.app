@@ -14,8 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.AnnotatedString
 import coil.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -40,10 +42,12 @@ private const val JUNGLE_MOON_BG = "file:///android_asset/img/login_bg.png"
 @Composable
 fun SetPasswordScreen(navController: NavController, method: String, contact: String) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     var newPass by remember { mutableStateOf("") }
     var passVisible by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf("") }
     var createdId by remember { mutableStateOf<String?>(null) }
+    var idCopied by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
 
     // Sirf gmail method ke waqt hi bekend se signup call ka jawab sunna hai
@@ -53,8 +57,8 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                 is ServerMessage.Auth -> {
                     loading = false
                     AccountStore.saveSession(context, "gmail", contact)
-                    SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds)
-                    createdId = msg.playerId
+                    SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds, msg.gameId)
+                    createdId = msg.gameId.toString()
                 }
                 is ServerMessage.Err -> {
                     loading = false
@@ -105,6 +109,21 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                         "Aapki Ludo ID: $createdId",
                         color = Color(0xFF222222), fontWeight = FontWeight.Bold, fontSize = 14.sp,
                         modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (idCopied) "\u2713 Copied!" else "\uD83D\uDCCB Tap to copy ID",
+                        color = if (idCopied) Color(0xFF0a7a42) else Color(0xFF2ea87f),
+                        fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                createdId?.let {
+                                    clipboard.setText(AnnotatedString(it))
+                                    idCopied = true
+                                }
+                            },
+                        textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(20.dp))
                     Button(
