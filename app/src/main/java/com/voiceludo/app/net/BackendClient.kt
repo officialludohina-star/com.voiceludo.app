@@ -504,8 +504,16 @@ object BackendClient {
                 color = color.ifBlank { null },
                 value = e.optInt("value"),
                 tokenIndex = e.optInt("tokenIndex"),
-                from = e.optInt("from", -1),
-                to = e.optInt("to", -1),
+                // BUG FIX: pehle default -1 tha — jab bekend "to"/"from" ki
+                // value 0 hone par (Go ke `,omitempty` ki wajah se) field
+                // bhej hi nahi raha tha, yahan -1 ("yard") ghalat maan liya
+                // jata, aur token abhi-abhi exit hone ke foran baad wapis
+                // yard mein bhej di jati. Bekend ab yeh field hamesha bhejta
+                // hai (omitempty hata di gayi hai), lekin yahan default bhi
+                // 0 kar diya taake yeh field kabhi bhi bhoole se missing ho
+                // to ghalat "yard" na maan liya jaye.
+                from = e.optInt("from", 0),
+                to = e.optInt("to", 0),
                 captured = jsonArrayToStringList(e.optJSONArray("captured")),
                 arrowJumped = e.optBoolean("arrowJumped"),
                 arrowAt = e.optInt("arrowAt"),
