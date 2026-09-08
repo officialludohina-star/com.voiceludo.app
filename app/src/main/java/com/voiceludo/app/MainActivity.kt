@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         applyImmersiveFullScreen()
+        com.voiceludo.app.audio.SoundManager.init(this)
 
         // Dice-roll GIF (aur koi bhi doosri animated GIF) ko sahi se animate karne ke liye
         // Coil ke default ImageLoader mein GIF decoder register karna zaroori hai — warna
@@ -242,5 +243,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        com.voiceludo.app.audio.SoundManager.release()
     }
 }

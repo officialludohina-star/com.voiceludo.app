@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.voiceludo.app.audio.SoundManager
 
 // Asal "#ludoModeScreen" ka hoobahoo design — tabs (1 ON 1 / 4 Players), Select Mode
 // card (Classic/Arrow/Quick/Master), Select Amount card (bet +/-, total pool), Magic
@@ -104,6 +105,7 @@ fun LudoModeSelectScreen(navController: NavController) {
                         model = if (betIndex <= 0) BET_MINUS_ICON_DISABLED else BET_MINUS_ICON,
                         contentDescription = "kam karo",
                         modifier = Modifier.size(40.dp).clickable {
+                            SoundManager.playClick()
                             if (betIndex > 0) betIndex--
                         }
                     )
@@ -124,6 +126,7 @@ fun LudoModeSelectScreen(navController: NavController) {
                         model = if (betIndex >= BET_OPTIONS.lastIndex) BET_PLUS_ICON_DISABLED else BET_PLUS_ICON,
                         contentDescription = "zyada karo",
                         modifier = Modifier.size(40.dp).clickable {
+                            SoundManager.playClick()
                             if (betIndex < BET_OPTIONS.lastIndex) betIndex++
                         }
                     )
@@ -164,7 +167,7 @@ fun LudoModeSelectScreen(navController: NavController) {
                             .size(32.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.Black.copy(alpha = 0.5f))
-                            .clickable { magicOn = !magicOn },
+                            .clickable { SoundManager.playClick(); magicOn = !magicOn },
                         contentAlignment = Alignment.Center
                     ) { if (magicOn) Text("\u2713", color = Color(0xFF7fffbf), fontWeight = FontWeight.Bold) }
                     Spacer(Modifier.width(10.dp))
@@ -189,7 +192,10 @@ fun LudoModeSelectScreen(navController: NavController) {
                     .widthIn(max = 260.dp)
                     .fillMaxWidth()
                     .aspectRatio(2172f / 724f)
-                    .clickable { navController.navigate("ludo_matching/${mode.name}/$players/$magicOn/$betIndex") }
+                    .clickable {
+                        SoundManager.playClick()
+                        navController.navigate("ludo_matching/${mode.name}/$players/$magicOn/$betIndex")
+                    }
             )
 
             Spacer(Modifier.height(20.dp))
@@ -203,7 +209,10 @@ fun LudoModeSelectScreen(navController: NavController) {
                 .size(width = 44.dp, height = 36.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
-                .clickable { navController.popBackStack() },
+                .clickable {
+                    SoundManager.playClick()
+                    navController.popBackStack()
+                },
             contentAlignment = Alignment.Center
         ) { Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp) }
     }
@@ -360,7 +369,7 @@ private fun ModeTab(iconUrl: String, label: String, active: Boolean, onClick: ()
                 if (active) Brush.verticalGradient(listOf(Color(0xFF3ad4ff), Color(0xFF1a7aff)))
                 else Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Black.copy(alpha = 0.35f)))
             )
-            .clickable(onClick = onClick)
+            .clickable { SoundManager.playClick(); onClick() }
             .padding(vertical = 10.dp, horizontal = 6.dp)
     ) {
         AsyncImage(
@@ -389,7 +398,7 @@ private fun LudoCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun ModeButton(label: String, active: Boolean, modifier: Modifier = Modifier, showHot: Boolean = false, onClick: () -> Unit) {
-    Box(modifier = modifier.clickable(onClick = onClick)) {
+    Box(modifier = modifier.clickable { SoundManager.playClick(); onClick() }) {
         // Box ka background hi asal image hai (select image mein gold border +
         // corner checkmark ribbon pehle se baked-in hai, unselect plain blue box) —
         // upar sirf game ka naam likha jata hai.

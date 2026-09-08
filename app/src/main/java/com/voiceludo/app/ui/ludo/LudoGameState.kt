@@ -3,6 +3,7 @@ package com.voiceludo.app.ui.ludo
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateListOf
+import com.voiceludo.app.audio.SoundManager
 import com.voiceludo.app.net.BackendClient
 import com.voiceludo.app.net.GameEvent
 import com.voiceludo.app.net.GameSnapshot
@@ -214,6 +215,9 @@ class LudoGameState(
                     val c = e.color?.let { runCatching { LudoColor.valueOf(it) }.getOrNull() } ?: continue
                     rollRequested.value = false
                     isRolling.value = true
+                    // dice_roll.mp3 — dice tap/roll hote hi. "reroll" (Extra
+                    // Dice/diamond se khareedi hui roll) ke liye alag sound.
+                    if (e.message == "reroll") SoundManager.playExtraDice() else SoundManager.playDiceRoll()
                     // Pehle 950ms, phir 550ms tha — user ne dobara kaha dice roll
                     // aur thora tez ho, ab aur kam kar diya.
                     delay(380)
@@ -225,12 +229,19 @@ class LudoGameState(
                 "rollAgain" -> {
                     // Informational — savedRolls chain snapshot se hi sync ho jayegi
                 }
+                "threeSix" -> {
+                    // threeSix.mp3 — 3 lagatar six aane par turn zabardasti khatam
+                    SoundManager.playThreeSix()
+                }
                 "awaitMove" -> {
                     movable.clear()
                     movable.addAll(e.movable)
                 }
                 "move" -> {
                     val c = e.color?.let { runCatching { LudoColor.valueOf(it) }.getOrNull() } ?: continue
+                    if (e.captured.isNotEmpty()) SoundManager.playKill()
+                    if (e.magicBonus) SoundManager.playMagicDice()
+                    if (e.rocketBonus) SoundManager.playRocket()
                     animateMove(c, e)
                 }
                 "turn" -> {
@@ -240,6 +251,9 @@ class LudoGameState(
                         currentIdx.value = players.indexOf(c).coerceAtLeast(0)
                         movable.clear()
                         rollChoice.value = null
+                        // my_turn.mp3 / opp_turn.mp3 — private, sirf apne
+                        // device par (jaisa color yeh device hai us hisaab se).
+                        if (c == myColor) SoundManager.playMyTurn() else SoundManager.playOppTurn()
                     }
                 }
                 "gameOver" -> {
@@ -248,6 +262,9 @@ class LudoGameState(
                     val winnerC = e.winner?.let { runCatching { LudoColor.valueOf(it) }.getOrNull() }
                     winnerColor.value = winnerC
                     winnerText.value = if (winnerC != null) "$winnerC JEET GAYA! \uD83C\uDFC6" else "Game khatam"
+                    // cheer.mp3 sirf jeetne wale ki taraf, ludo_fail.mp3 baaqi sab
+                    // (jo jeete nahi) ki taraf — har device apna hi sunta hai.
+                    if (winnerC == myColor) SoundManager.playWin() else SoundManager.playLose()
                 }
             }
         }
@@ -305,6 +322,7 @@ class LudoGameState(
                     while (pos < e.arrowAt) {
                         pos += 1
                         setPos(pos)
+                        SoundManager.playTokenMove()
                         delay(220)
                     }
                     arrowGlidingToken.value = key
@@ -316,6 +334,7 @@ class LudoGameState(
                     while (pos < e.to) {
                         pos += 1
                         setPos(pos)
+                        SoundManager.playTokenMove()
                         delay(220)
                     }
                 }
@@ -333,6 +352,7 @@ class LudoGameState(
             while (pos < e.arrowAt) {
                 pos += 1
                 setPos(pos)
+                SoundManager.playTokenMove()
                 delay(220)
             }
             arrowGlidingToken.value = key
@@ -345,6 +365,7 @@ class LudoGameState(
             while (pos < e.to) {
                 pos += 1
                 setPos(pos)
+                SoundManager.playTokenMove()
                 delay(220)
             }
         }

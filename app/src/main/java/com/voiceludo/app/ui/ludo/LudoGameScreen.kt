@@ -37,9 +37,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.voiceludo.app.audio.SoundManager
 import com.voiceludo.app.net.BackendClient
 import com.voiceludo.app.net.ServerMessage
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Asal HTML ke #ludoGameScreen jaisa hi — sab kuch (top icons, settings panel, board,
@@ -72,6 +74,21 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     }
     val totalPool = matched.bet * players
 
+    // last_sec.mp3 — turn timer ke aakhri 3 second mein, 1-1 second ki dori se
+    // 3 baar "tick" — sirf us player ke apne device par jiski bari/timer hai
+    // (opponent ke liye nahi, taake unnecessary shor na ho).
+    LaunchedEffect(state.turnTimerKey.value) {
+        val total = state.turnTimerSeconds.value
+        if (state.turnTimerColor.value != myColor) return@LaunchedEffect
+        val waitBefore = (total - 3).coerceAtLeast(0)
+        delay(waitBefore * 1000L)
+        repeat(3) {
+            if (state.turnTimerColor.value != myColor) return@LaunchedEffect
+            SoundManager.playLastSecondTick()
+            delay(1000)
+        }
+    }
+
     // Naye listener ke attach hone se PEHLE hi agar opponent ka naam/DP aa
     // chuka ho (race condition — "matched" ke turant baad "opponentProfile"
     // event, is screen ke apna listener lagane se pehle hi aa jaye), to woh
@@ -94,7 +111,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
         val listener: (ServerMessage) -> Unit = { msg ->
             when (msg) {
                 is ServerMessage.Events -> { state.onConnectionRestored(); state.onServerEvents(msg.events, msg.state) }
-                is ServerMessage.OpponentLeft -> opponentLeftMsg = "${msg.color} game chhod gaya"
+                is ServerMessage.OpponentLeft -> {
+                    opponentLeftMsg = "${msg.color} game chhod gaya"
+                    SoundManager.playOppLeft()
+                }
                 is ServerMessage.OpponentProfile -> state.onOpponentProfile(msg.color, msg.name, msg.avatar)
                 is ServerMessage.TurnTimer -> state.onTurnTimer(msg.color, msg.seconds)
                 is ServerMessage.Wallet -> msg.message?.let { walletMsg = it }
@@ -214,11 +234,11 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
             ) {
                 AsyncImage(
                     model = SETTINGS_ICON, contentDescription = "settings",
-                    modifier = Modifier.size(40.dp).clickable { showSettings = !showSettings }
+                    modifier = Modifier.size(40.dp).clickable { SoundManager.playClick(); showSettings = !showSettings }
                 )
                 AsyncImage(
                     model = BET_INFO_ICON, contentDescription = "bet info",
-                    modifier = Modifier.size(44.dp).clickable { showBetInfo = true }
+                    modifier = Modifier.size(44.dp).clickable { SoundManager.playClick(); showBetInfo = true }
                 )
             }
         }

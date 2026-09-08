@@ -50,6 +50,9 @@ data class GameEvent(
     // effect dikhata hai. Poora move ek hi lambi glide nahi hoti.
     val arrowAt: Int = 0,
     val magicBonus: Boolean = false,
+    // rocketBonus — true jab is move par Magic Rocket cell trigger hui ho
+    // (magicBonus sirf Golden Dice ke liye hai).
+    val rocketBonus: Boolean = false,
     val reachedHome: Boolean = false,
     val movable: List<Int> = emptyList(),
     val winner: String? = null,
@@ -510,6 +513,7 @@ object BackendClient {
                 arrowJumped = e.optBoolean("arrowJumped"),
                 arrowAt = e.optInt("arrowAt"),
                 magicBonus = e.optBoolean("magicBonus"),
+                rocketBonus = e.optBoolean("rocketBonus"),
                 reachedHome = e.optBoolean("reachedHome"),
                 movable = jsonArrayToIntList(e.optJSONArray("movable")),
                 winner = winner.ifBlank { null },

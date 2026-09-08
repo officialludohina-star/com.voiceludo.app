@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.voiceludo.app.audio.SoundManager
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -53,6 +55,14 @@ fun LudoMatchingScreen(
     // isliye connection wapis aate hi hum khud dobara "join" bhej dete hain
     // taake queue mein wapis shamil ho jayen.
     var connectionLost by remember { mutableStateOf(false) }
+
+    // Lobby (matching/waiting) screen mein aate hi background music shuru,
+    // yahan se nikalte hi (match mil jaye ya user wapis chala jaye) band.
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        SoundManager.startLobbyMusic(context)
+        onDispose { SoundManager.stopLobbyMusic() }
+    }
 
     LaunchedEffect(connectionLost) {
         if (connectionLost) {
