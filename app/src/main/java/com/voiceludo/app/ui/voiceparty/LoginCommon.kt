@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.voiceludo.app.audio.SoundManager
 
 // index.html ke .card-real / .input-real / header-bar patterns — Facebook/Mobile/Gmail
 // teeno login screens isi styling ko share karti hain.
@@ -58,7 +59,7 @@ fun LoginHeaderBar(
     ) {
         if (useBackArrow) {
             Box(
-                modifier = Modifier.size(40.dp).clickable(onClick = onClose),
+                modifier = Modifier.size(40.dp).clickable { SoundManager.playClick(); onClose() },
                 contentAlignment = Alignment.Center
             ) { Text("\u2190", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
         } else {
@@ -80,7 +81,7 @@ fun LoginHeaderBar(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF2C8F72).copy(alpha = 0.82f))
-                    .clickable(onClick = onClose),
+                    .clickable { SoundManager.playClick(); onClose() },
                 contentAlignment = Alignment.Center
             ) { Text("\u2715", color = Color.White, fontSize = 25.sp) }
         }
@@ -127,7 +128,7 @@ fun RemoteImageButton(
         model = imageUrl,
         contentDescription = contentDescription,
         contentScale = ContentScale.FillBounds,
-        modifier = modifier.clickable(onClick = onClick)
+        modifier = modifier.clickable { SoundManager.playClick(); onClick() }
     )
 }
 
@@ -315,7 +316,7 @@ fun AuthPopupHeader(title: String, onClose: () -> Unit) {
                 .clip(CircleShape)
                 .background(Brush.verticalGradient(listOf(AuthTealLight, AuthTealDark)))
                 .border(3.dp, AuthGold, CircleShape)
-                .clickable(onClick = onClose),
+                .clickable { SoundManager.playClick(); onClose() },
             contentAlignment = Alignment.Center
         ) { Text("\u2715", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
     }
@@ -388,7 +389,7 @@ fun AuthGoldButton(
                 else Brush.verticalGradient(listOf(Color(0xFFdadada), Color(0xFFbdbdbd)))
             )
             .border(2.dp, if (enabled) AuthGoldDark else Color(0xFF9e9e9e), RoundedCornerShape(14.dp))
-            .clickable(enabled = enabled && !loading, onClick = onClick),
+            .clickable(enabled = enabled && !loading) { SoundManager.playClick(); onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (loading) {
@@ -410,11 +411,11 @@ fun LinkRow(leftText: String, rightText: String, onLeft: () -> Unit, onRight: ()
     ) {
         Text(
             leftText, color = CardRealBorder, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = onLeft)
+            modifier = Modifier.clickable { SoundManager.playClick(); onLeft() }
         )
         Text(
             rightText, color = CardRealBorder, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = onRight)
+            modifier = Modifier.clickable { SoundManager.playClick(); onRight() }
         )
     }
 }

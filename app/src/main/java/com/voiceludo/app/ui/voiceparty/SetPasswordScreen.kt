@@ -118,6 +118,7 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                com.voiceludo.app.audio.SoundManager.playClick()
                                 createdId?.let {
                                     clipboard.setText(AnnotatedString(it))
                                     idCopied = true
@@ -128,13 +129,14 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                     Spacer(Modifier.height(20.dp))
                     Button(
                         onClick = {
+                            com.voiceludo.app.audio.SoundManager.playClick()
                             val loginRoute = if (method == "mobile") "vp_mobile_login" else "vp_gmail_login"
                             navController.popBackStack(loginRoute, inclusive = false)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0a7a42)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth().height(46.dp)
-                    ) { Text("Login karein", color = Color.White, fontWeight = FontWeight.Bold) }
+                    ) { Text("Log In", color = Color.White, fontWeight = FontWeight.Bold) }
                 } else {
                     // Reference jaisa ek hi "New Password" field, eye-toggle ke saath
                     OutlinedTextField(
@@ -148,7 +150,7 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                                 visible = passVisible,
                                 modifier = Modifier
                                     .padding(end = 10.dp)
-                                    .clickable { passVisible = !passVisible }
+                                    .clickable { com.voiceludo.app.audio.SoundManager.playClick(); passVisible = !passVisible }
                             )
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -180,9 +182,10 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                     Spacer(Modifier.height(20.dp))
                     Button(
                         onClick = {
+                            com.voiceludo.app.audio.SoundManager.playClick()
                             when {
                                 newPass.length < 6 ->
-                                    errorText = "Password kam se kam 6 characters ka ho."
+                                    errorText = "Password must be at least 6 characters."
                                 method == "gmail" -> {
                                     loading = true
                                     errorText = ""

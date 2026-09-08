@@ -42,7 +42,7 @@ fun MobileLoginScreen(navController: NavController) {
                         .height(48.dp)
                         .background(Color.White, RoundedCornerShape(12.dp))
                         .border(1.5.dp, Color(0xFFc8e6c9), RoundedCornerShape(12.dp))
-                        .clickable { countryMenuOpen = true }
+                        .clickable { com.voiceludo.app.audio.SoundManager.playClick(); countryMenuOpen = true }
                         .padding(horizontal = 14.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                 ) {
@@ -55,7 +55,7 @@ fun MobileLoginScreen(navController: NavController) {
                     modifier = Modifier.heightIn(max = 320.dp)
                 ) {
                     COUNTRY_LIST.forEach { c ->
-                        DropdownMenuItem(text = { Text(c) }, onClick = { country = c; countryMenuOpen = false })
+                        DropdownMenuItem(text = { Text(c) }, onClick = { com.voiceludo.app.audio.SoundManager.playClick(); country = c; countryMenuOpen = false })
                     }
                 }
             }
@@ -67,7 +67,7 @@ fun MobileLoginScreen(navController: NavController) {
 
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { navController.navigate("vp_home") },
+                onClick = { com.voiceludo.app.audio.SoundManager.playClick(); navController.navigate("vp_home") },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFbdbdbd)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(46.dp)

@@ -276,12 +276,25 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 SettingsOption(
                     icon = if (soundOn) SOUND_ICON else SOUND_OFF_ICON,
                     label = if (soundOn) "On" else "Off",
-                    onClick = { soundOn = !soundOn }
+                    onClick = {
+                        // BUG FIX: pehle yeh sirf ek local UI toggle tha — icon
+                        // "Off" dikhata tha lekin SoundManager ko kabhi pata hi
+                        // nahi chalta tha, is liye sound asal mein kabhi mute
+                        // nahi hoti thi. Ab SoundManager.muted bhi sath mein
+                        // set hota hai. Order jaan-boojh kar aisa hai: mute
+                        // karte hi turant khamosh (khud is click ki awaz bhi
+                        // nahi), aur wapis on karte hi turant ek click sunayi
+                        // deta hai (confirm karne ke liye ke sound wapis chalu
+                        // ho gayi).
+                        soundOn = !soundOn
+                        SoundManager.muted = !soundOn
+                        SoundManager.playClick()
+                    }
                 )
                 SettingsOption(
                     icon = EXIT_ICON,
                     label = "Exit",
-                    onClick = { navController.popBackStack() }
+                    onClick = { SoundManager.playClick(); navController.popBackStack() }
                 )
             }
         }
@@ -518,14 +531,14 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 if (loserNames.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Haarne wale: ${loserNames.joinToString(", ")}",
+                        "Lost: ${loserNames.joinToString(", ")}",
                         color = Color.White.copy(alpha = 0.75f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
                     )
                 }
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = { navController.popBackStack() }) { Text("Back to Mode Select") }
+                Button(onClick = { SoundManager.playClick(); navController.popBackStack() }) { Text("Back to Mode Select") }
             }
         }
 
@@ -538,7 +551,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 text = {
                     Column {
                         Text(
-                            "Aap ne is game mein ${matched.bet} coins laga kar khela hai.",
+                            "You played this game with a bet of ${matched.bet} coins.",
                             fontWeight = FontWeight.Bold, fontSize = 14.sp
                         )
                         Spacer(Modifier.height(6.dp))
@@ -553,7 +566,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showBetInfo = false }) { Text("Close") }
+                    TextButton(onClick = { SoundManager.playClick(); showBetInfo = false }) { Text("Close") }
                 }
             )
         }
@@ -597,10 +610,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 title = { Text("Connection lost", fontWeight = FontWeight.Black) },
                 text = { Text("Could not reconnect within $RECONNECT_GRACE_SECONDS seconds. Try again or leave the game?") },
                 confirmButton = {
-                    TextButton(onClick = { state.retryConnect() }) { Text("Connect") }
+                    TextButton(onClick = { SoundManager.playClick(); state.retryConnect() }) { Text("Connect") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { state.exitGame() }) { Text("Exit") }
+                    TextButton(onClick = { SoundManager.playClick(); state.exitGame() }) { Text("Exit") }
                 }
             )
         }

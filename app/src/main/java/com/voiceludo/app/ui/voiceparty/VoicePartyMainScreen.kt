@@ -91,7 +91,7 @@ private fun BigIconLoginButton(
             .height(height.dp)
             .offset(x = offsetX.dp, y = offsetY.dp)
             .clip(RoundedCornerShape(50))
-            .clickable(onClick = onClick)
+            .clickable { com.voiceludo.app.audio.SoundManager.playClick(); onClick() }
     ) {
         // Naye button images (Login with Gmail / Login with Facebook) mein text
         // pehle se bana hua hai, is liye alag se Text() draw karne ki zaroorat nahi —

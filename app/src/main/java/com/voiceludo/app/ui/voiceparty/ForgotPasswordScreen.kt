@@ -107,7 +107,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Aap ab logged in hain.",
+                        "You are now logged in.",
                         color = Color(0xFF222222), fontSize = 13.sp,
                         modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
                     )
@@ -215,7 +215,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                         trailingIcon = {
                             EyeToggleIcon(
                                 visible = passVisible,
-                                modifier = Modifier.padding(end = 10.dp).clickable { passVisible = !passVisible }
+                                modifier = Modifier.padding(end = 10.dp).clickable { com.voiceludo.app.audio.SoundManager.playClick(); passVisible = !passVisible }
                             )
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -249,7 +249,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                         loading = loading,
                         onClick = {
                             when {
-                                newPass.length < 6 -> errorText = "Password kam se kam 6 characters ka ho."
+                                newPass.length < 6 -> errorText = "Password must be at least 6 characters."
                                 else -> {
                                     loading = true
                                     errorText = ""

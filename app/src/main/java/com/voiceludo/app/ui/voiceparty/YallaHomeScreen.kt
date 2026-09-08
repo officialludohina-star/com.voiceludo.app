@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.voiceludo.app.audio.SoundManager
 import com.voiceludo.app.net.BackendClient
 import com.voiceludo.app.net.ServerMessage
 import com.voiceludo.app.net.SessionStore
@@ -90,6 +91,16 @@ private fun formatAmount(v: Long): String = when {
 fun YallaHomeScreen(navController: NavController) {
     var showSettingsDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    // "Arafta" lobby background music — pehle sirf matching (opponent-dhoondte)
+    // screen par chalti thi. User ne kaha ke Home/Lobby screen (yeh screen) par
+    // bhi chalni chahiye — taake Home se Matching tak ek hi continuous mahol
+    // (music) rahe. Screen chhodte hi (kisi doosre screen par jaate hi) band
+    // ho jati hai; agar wapis Home par aaye to phir se shuru ho jati hai.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.voiceludo.app.audio.SoundManager.startLobbyMusic(context)
+        onDispose { com.voiceludo.app.audio.SoundManager.stopLobbyMusic() }
+    }
 
     // Home khulte hi apna on-device saved naam/avatar (agar avatar pehle se
     // upload ho kar hosted URL ban chuka ho) ek dafa bekend ko sync kar dete
@@ -187,6 +198,7 @@ private fun SettingsDialog(onDismiss: () -> Unit, onLoggedOut: () -> Unit) {
         confirmButton = {
             Button(
                 onClick = {
+                    SoundManager.playClick()
                     AccountStore.clearSession(context)
                     SessionStore.clear(context)
                     onLoggedOut()
@@ -195,7 +207,7 @@ private fun SettingsDialog(onDismiss: () -> Unit, onLoggedOut: () -> Unit) {
             ) { Text("Logout", color = Color.White, fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = { SoundManager.playClick(); onDismiss() }) { Text("Close") }
         }
     )
 }
@@ -247,7 +259,7 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) 
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(46.dp).homeLayout("avatar").clickable(onClick = onAvatarClick)) {
+        Box(modifier = Modifier.size(46.dp).homeLayout("avatar").clickable { SoundManager.playClick(); onAvatarClick() }) {
             Box(
                 modifier = Modifier
                     .size(46.dp)
@@ -314,7 +326,7 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) 
             modifier = Modifier
                 .size(34.dp)
                 .homeLayout("settings")
-                .clickable(onClick = onSettingsClick)
+                .clickable { SoundManager.playClick(); onSettingsClick() }
         )
     }
 }
@@ -421,7 +433,7 @@ private fun ModeCard(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(gradient)
-            .clickable(onClick = onClick)
+            .clickable { SoundManager.playClick(); onClick() }
     ) {
         AsyncImage(
             model = imageUrl,
@@ -463,7 +475,7 @@ private fun BottomNav() {
 
 @Composable
 private fun NavItem(iconUrl: String, label: String, active: Boolean = false, layoutModifier: Modifier = Modifier, onClick: () -> Unit = {}) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = layoutModifier.clickable(onClick = onClick)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = layoutModifier.clickable { SoundManager.playClick(); onClick() }) {
         Box(contentAlignment = Alignment.Center) {
             if (active) {
                 AsyncImage(

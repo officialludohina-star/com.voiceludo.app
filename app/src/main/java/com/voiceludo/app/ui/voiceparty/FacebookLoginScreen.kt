@@ -49,7 +49,7 @@ fun FacebookLoginScreen(navController: NavController) {
 
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { navController.navigate("vp_home") },
+                onClick = { com.voiceludo.app.audio.SoundManager.playClick(); navController.navigate("vp_home") },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877f2)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -57,7 +57,7 @@ fun FacebookLoginScreen(navController: NavController) {
 
             Spacer(Modifier.height(12.dp))
             Button(
-                onClick = { /* asal HTML mein bhi ye sirf ek alert tha, real OAuth nahi */ },
+                onClick = { com.voiceludo.app.audio.SoundManager.playClick() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe7f3ff)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(44.dp)
@@ -78,7 +78,7 @@ fun FacebookLoginScreen(navController: NavController) {
                 fontSize = 12.sp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { navController.popBackStack() },
+                    .clickable { com.voiceludo.app.audio.SoundManager.playClick(); navController.popBackStack() },
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }

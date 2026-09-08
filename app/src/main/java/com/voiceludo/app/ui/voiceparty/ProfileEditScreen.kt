@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.voiceludo.app.audio.SoundManager
 import com.voiceludo.app.net.BackendClient
 import java.io.File
 
@@ -206,7 +207,7 @@ fun ProfileEditScreen(navController: NavController) {
                         .align(Alignment.TopEnd)
                         .padding(top = 8.dp, end = 8.dp)
                         .size(56.dp)
-                        .clickable { navController.popBackStack() }
+                        .clickable { SoundManager.playClick(); navController.popBackStack() }
                 )
             }
 
@@ -228,6 +229,7 @@ fun ProfileEditScreen(navController: NavController) {
                         .clip(CircleShape)
                         .background(Color(0xFF0d2818))
                         .clickable {
+                            SoundManager.playClick()
                             pickPhoto.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
@@ -253,6 +255,7 @@ fun ProfileEditScreen(navController: NavController) {
                         .background(Color(0xFF0d2818))
                         .border(2.dp, ProfileGreenAccent.copy(alpha = 0.7f), CircleShape)
                         .clickable {
+                            SoundManager.playClick()
                             pickPhoto.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
@@ -293,6 +296,7 @@ fun ProfileEditScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            SoundManager.playClick()
                             clipboard.setText(AnnotatedString(gameId.toString()))
                             idCopied = true
                         },
@@ -434,6 +438,7 @@ fun ProfileEditScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
+                                    SoundManager.playClick()
                                     ProfileStore.saveGender(context, value)
                                     profile = ProfileStore.get(context)
                                     showGenderDialog = false
@@ -442,6 +447,7 @@ fun ProfileEditScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(selected = profile.gender == value, onClick = {
+                                SoundManager.playClick()
                                 ProfileStore.saveGender(context, value)
                                 profile = ProfileStore.get(context)
                                 showGenderDialog = false
@@ -455,7 +461,7 @@ fun ProfileEditScreen(navController: NavController) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showGenderDialog = false }) { Text("Close") }
+                TextButton(onClick = { SoundManager.playClick(); showGenderDialog = false }) { Text("Close") }
             }
         )
     }
@@ -503,7 +509,7 @@ private fun FieldBox(
             .clip(RoundedCornerShape(10.dp))
             .background(FieldBoxBg)
             .border(1.dp, FieldBoxBorder, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .clickable { SoundManager.playClick(); onClick() }
             .padding(horizontal = 14.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = if (alignTop) Alignment.Top else Alignment.CenterVertically
@@ -540,7 +546,7 @@ private fun CardFieldBox(
             .clip(RoundedCornerShape(10.dp))
             .background(CardFieldBoxBg)
             .border(1.dp, CardFieldBoxBorder, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .clickable { SoundManager.playClick(); onClick() }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = if (alignTop) Alignment.Top else Alignment.CenterVertically
@@ -576,10 +582,10 @@ private fun TextInputDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(text) }) { Text("Save") }
+            TextButton(onClick = { SoundManager.playClick(); onConfirm(text) }) { Text("Save") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = { SoundManager.playClick(); onDismiss() }) { Text("Cancel") }
         }
     )
 }
@@ -609,7 +615,7 @@ private fun FlagPickerDialog(onDismiss: () -> Unit, onSelect: (icon: String, nam
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onSelect(icon, name) }
+                                .clickable { SoundManager.playClick(); onSelect(icon, name) }
                                 .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

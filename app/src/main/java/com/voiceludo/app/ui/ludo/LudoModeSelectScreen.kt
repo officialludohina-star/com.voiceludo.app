@@ -79,7 +79,7 @@ fun LudoModeSelectScreen(navController: NavController) {
                             .size(20.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.15f))
-                            .clickable { showHelp = true },
+                            .clickable { SoundManager.playClick(); showHelp = true },
                         contentAlignment = Alignment.Center
                     ) { Text("?", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 }
@@ -262,7 +262,7 @@ private fun RulesDialog(onDismiss: () -> Unit) {
                         .align(Alignment.CenterEnd)
                         .padding(end = 16.dp)
                         .size(26.dp)
-                        .clickable(onClick = onDismiss),
+                        .clickable { SoundManager.playClick(); onDismiss() },
                     contentAlignment = Alignment.Center
                 ) { Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp) }
             }
@@ -282,7 +282,7 @@ private fun RulesDialog(onDismiss: () -> Unit) {
                             .padding(3.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (active) Color(0xFFe2f7ef) else Color(0xFFf1f1f1))
-                            .clickable { tab = m }
+                            .clickable { SoundManager.playClick(); tab = m }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {

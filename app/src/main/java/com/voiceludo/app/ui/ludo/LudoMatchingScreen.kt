@@ -243,6 +243,7 @@ fun LudoMatchingScreen(
                 .clip(RoundedCornerShape(10.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
                 .clickable {
+                    SoundManager.playClick()
                     BackendClient.leaveRoom()
                     navController.popBackStack()
                 },
