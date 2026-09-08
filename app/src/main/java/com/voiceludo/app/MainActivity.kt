@@ -245,6 +245,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        // App background chali jaye (home button, app-switch, screen off,
+        // waghera) to lobby/matching screen ka background music turant ruk
+        // jaye — pehle sirf screen se nikalne (composable dispose) par rukta
+        // tha, app minimize karne par nahi (Compose tree tab bhi zinda rehta
+        // hai, isliye music bajta reh jata tha).
+        com.voiceludo.app.audio.SoundManager.pauseLobbyMusic()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        com.voiceludo.app.audio.SoundManager.resumeLobbyMusic()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         com.voiceludo.app.audio.SoundManager.release()

@@ -89,6 +89,21 @@ object SoundManager {
         lobbyPlayer = null
     }
 
+    // App background chali jaye (MainActivity onPause) to lobby music turant
+    // ruk jaye — pehle yeh sirf screen-level (Compose DisposableEffect) se
+    // control hoti thi, jo Activity paused hone par khud nahi rukti (Compose
+    // tree background mein bhi zinda rehta hai). Ab pause() se position yaad
+    // rehti hai, taake app wapis foreground mein aane par (onResume) wahin se
+    // continue ho jaye, restart na ho.
+    fun pauseLobbyMusic() {
+        lobbyPlayer?.let { runCatching { if (it.isPlaying) it.pause() } }
+    }
+
+    fun resumeLobbyMusic() {
+        if (muted) return
+        lobbyPlayer?.let { runCatching { if (!it.isPlaying) it.start() } }
+    }
+
     // App band hote waqt (MainActivity onDestroy) call karna — resources free.
     fun release() {
         soundPool?.release()

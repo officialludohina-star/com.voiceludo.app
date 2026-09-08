@@ -228,6 +228,20 @@ object BackendClient {
     fun ensureConnected() {
         if (socket != null) return
         _state.value = ConnState.CONNECTING
+        // ZAROORI FIX: pehle "authed" sirf onOpen() (async, connection asal
+        // mein khulne ke baad) ke andar reset hota tha. Lekin naya socket
+        // reference isi function mein SYNCHRONOUSLY (neeche) set ho jata hai
+        // — matlab agar isi turant baad koi doosri jagah (jaise "join") send()
+        // ko call kare, socket != null ho chuka hota lekin authed abhi bhi
+        // PURANI (mar chuki) connection ki "true" value par atka hota, jab tak
+        // onOpen async chal kar ise reset na kare. Is dauran send()'s gate
+        // (`!authed && ...`) galat tarah pass ho jata aur "join" seedha bhej
+        // dia jata — asal loginWithToken/resume se bhi pehle — server isay
+        // unauthenticated samajh kar "pehle signup/login karein" bhej deta
+        // (chahe user asal mein login ho). Ab authed yahin, turant, naya
+        // connection banate hi false kar dete hain — taake beech ka yeh
+        // race-window kabhi na khule.
+        authed = false
         val request = Request.Builder().url(WS_URL).build()
         socket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
