@@ -74,6 +74,9 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     }
     val totalPool = matched.bet * players
 
+    // Safety: game screen par lobby music kabhi nahi bajni chahiye.
+    LaunchedEffect(Unit) { SoundManager.stopLobbyMusic() }
+
     // last_sec.mp3 — turn timer ke aakhri 3 second mein, 1-1 second ki dori se
     // 3 baar "tick" — sirf us player ke apne device par jiski bari/timer hai
     // (opponent ke liye nahi, taake unnecessary shor na ho).

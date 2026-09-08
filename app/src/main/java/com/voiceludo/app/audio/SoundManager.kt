@@ -26,7 +26,7 @@ object SoundManager {
         R.raw.sfx_extra_dice, R.raw.sfx_opp_left, R.raw.sfx_last_sec,
         R.raw.sfx_lose, R.raw.sfx_magic_dice, R.raw.sfx_my_turn,
         R.raw.sfx_opp_turn, R.raw.sfx_rocket, R.raw.sfx_three_six,
-        R.raw.sfx_token_move
+        R.raw.sfx_token_move, R.raw.sfx_firework
     )
 
     // App/Activity shuru hote hi ek hi baar call karna hai (MainActivity
@@ -65,6 +65,9 @@ object SoundManager {
     fun playRocket() = play(R.raw.sfx_rocket)
     fun playThreeSix() = play(R.raw.sfx_three_six)
     fun playTokenMove() = play(R.raw.sfx_token_move)
+    // firework.mp3 — token ghar (home) pohanchne par, aur arrow ki tail cell
+    // trigger hone par.
+    fun playFirework() = play(R.raw.sfx_firework)
 
     // Lobby (matching/waiting screen) background music — screen mein aate hi
     // shuru, wahan se nikalte hi (matched ho jaye ya wapis chale jayein) band.

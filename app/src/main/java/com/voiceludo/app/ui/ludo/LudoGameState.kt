@@ -215,11 +215,9 @@ class LudoGameState(
                     val c = e.color?.let { runCatching { LudoColor.valueOf(it) }.getOrNull() } ?: continue
                     rollRequested.value = false
                     isRolling.value = true
-                    // dice_roll.mp3 — dice tap/roll hote hi. "reroll" (Extra
-                    // Dice/diamond se khareedi hui roll) ke liye alag sound.
-                    if (e.message == "reroll") SoundManager.playExtraDice() else SoundManager.playDiceRoll()
-                    // Pehle 950ms, phir 550ms tha — user ne dobara kaha dice roll
-                    // aur thora tez ho, ab aur kam kar diya.
+                    // dice_roll/extra_dice sound ab yahan nahi — tap karte hi
+                    // (rollDice()/buyExtraRoll() mein) turant baj jati hai,
+                    // taake server round-trip ka intezar na karna pade.
                     delay(380)
                     isRolling.value = false
                     diceByColor[c] = e.value
@@ -239,9 +237,12 @@ class LudoGameState(
                 }
                 "move" -> {
                     val c = e.color?.let { runCatching { LudoColor.valueOf(it) }.getOrNull() } ?: continue
-                    if (e.captured.isNotEmpty()) SoundManager.playKill()
-                    if (e.magicBonus) SoundManager.playMagicDice()
-                    if (e.rocketBonus) SoundManager.playRocket()
+                    // kill/rocket/magic-dice/firework sounds ab yahan turant
+                    // nahi bajti — pehle yeh "move" event aate hi baj jati
+                    // thin, jabke token abhi chalna/walk karna shuru bhi nahi
+                    // hua hota tha (isliye "awaz pehle aati hai" wala masla
+                    // hota tha). Ab animateMove() ke andar, asal visual moment
+                    // par (jab token waqai us cell tak pohanchta hai) bajti hain.
                     animateMove(c, e)
                 }
                 "turn" -> {
@@ -326,6 +327,9 @@ class LudoGameState(
                         delay(220)
                     }
                     arrowGlidingToken.value = key
+                    // firework.mp3 — arrow ki tail cell par pohanchte hi (jump
+                    // shuru hone se theek pehle), exact us waqt.
+                    SoundManager.playFirework()
                     setPos(e.to)
                     delay(480)
                     arrowGlidingToken.value = null
@@ -356,6 +360,8 @@ class LudoGameState(
                 delay(220)
             }
             arrowGlidingToken.value = key
+            // firework.mp3 — arrow ki tail cell par pohanchte hi.
+            SoundManager.playFirework()
             setPos(e.to)
             delay(480)
             arrowGlidingToken.value = null
@@ -372,10 +378,22 @@ class LudoGameState(
         setPos(e.to)
         isMoving.value = false
 
+        // Rocket/Golden-Dice magic effects — walk poora hone ke exact waqt
+        // par (pehle "move" event aate hi turant baj jati thin, jabke token
+        // abhi chalna shuru bhi nahi hua hota tha — is se "awaz pehle aati
+        // hai" wala masla hota tha).
+        if (e.rocketBonus) SoundManager.playRocket()
+        if (e.magicBonus) SoundManager.playMagicDice()
+        // Token ghar (home) pohanch gaya — firework.
+        if (e.reachedHome) SoundManager.playFirework()
+
         if (e.captured.isNotEmpty()) {
             val g = globalCellOf(color, e.to)
             killerFlashPos.value = g
             killedFlashPos.value = g
+            // kill sound bhi ab exact isi waqt (jab flash/visual kill hoti
+            // hai), "move" event ke turant baad nahi.
+            SoundManager.playKill()
             delay(1200)
             killerFlashPos.value = null
             killedFlashPos.value = null
@@ -435,6 +453,8 @@ class LudoGameState(
     // chahe (sirf current-turn player hi bhej sakta hai, cost server khud nikalta hai) ----
     fun buyExtraRoll() {
         if (gameOver.value || currentColor != myColor) return
+        // Turant (server ke jawab ka intezar kiye bagair) — tap karte hi awaz.
+        SoundManager.playExtraDice()
         BackendClient.buyExtraRoll()
     }
 
@@ -443,6 +463,10 @@ class LudoGameState(
     fun rollDice() {
         if (gameOver.value || movable.isNotEmpty() || currentColor != myColor || rollRequested.value) return
         rollRequested.value = true
+        // Turant (server ke jawab ka intezar kiye bagair) — tap karte hi awaz,
+        // pehle yeh "dice" event ke server se wapis aane tak ruk jati thi jo
+        // der se/lagged mehsoos hoti thi.
+        SoundManager.playDiceRoll()
         BackendClient.roll()
     }
 

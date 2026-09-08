@@ -37,6 +37,12 @@ fun LudoModeSelectScreen(navController: NavController) {
     val bet = BET_OPTIONS[betIndex]
     val totalPool = bet * players
 
+    // Safety: agar kisi wajah se lobby music abhi tak baj rahi ho (jaise
+    // "wapis" aakar isi screen par dobara pohanchna), yahan hamesha rok di
+    // jati hai — yeh (bet select) screen "lobby" nahi hai, lobby sirf
+    // matching/waiting screen hai.
+    LaunchedEffect(Unit) { SoundManager.stopLobbyMusic() }
+
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0a1a2a))) {
         AsyncImage(
             model = MODE_SCREEN_BG_IMG,
