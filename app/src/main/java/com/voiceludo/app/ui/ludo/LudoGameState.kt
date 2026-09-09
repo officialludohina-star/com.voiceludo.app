@@ -347,6 +347,13 @@ class LudoGameState(
                     // apni final jagah par pohanchta hai.
                     rocketFlyingToken.value = key
                     SoundManager.playRocket()
+                    // Ek chhota frame-gap — taake Compose "isRocketFlying=true"
+                    // (aur uska lamba 620ms tween) ko PURANI position ke sath
+                    // pehle recompose kar le, phir position badle. Bagair is
+                    // gap ke, kabhi kabhi dono changes ek hi frame mein lag
+                    // jate the aur token seedha final jagah par "snap" ho
+                    // jata tha — udaan nazar hi nahi aati thi.
+                    delay(16)
                     setPos(e.to)
                     delay(620)
                     rocketFlyingToken.value = null
@@ -392,6 +399,10 @@ class LudoGameState(
             val key = "${color}_${e.tokenIndex}"
             rocketFlyingToken.value = key
             SoundManager.playRocket()
+            // Ek chhota frame-gap — taake udaan hamesha purani jagah se shuru
+            // ho, seedha final jagah par snap na ho (upar wale comment jaisi
+            // hi wajah).
+            delay(16)
             setPos(e.to)
             delay(620)
             rocketFlyingToken.value = null

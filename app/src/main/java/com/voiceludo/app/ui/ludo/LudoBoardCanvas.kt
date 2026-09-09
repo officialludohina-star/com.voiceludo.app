@@ -13,6 +13,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.atan2
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -167,7 +168,8 @@ private fun BoxTokenWithGlow(
     onTap: () -> Unit,
     popScale: Float = 1f,
     popAlpha: Float = 1f,
-    isRocketFlying: Boolean = false
+    isRocketFlying: Boolean = false,
+    rocketAngle: Float = 0f
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "tokenGlow")
     val glowScale by infiniteTransition.animateFloat(
@@ -212,6 +214,19 @@ private fun BoxTokenWithGlow(
         label = "flamePulse"
     )
 
+    // Landing flash — rocket abhi abhi land hui ho (isRocketFlying true se
+    // false hui ho) to token ki jagah ek chhota safed "sparkle burst" flash
+    // hota hai, jaisa reference video mein tha.
+    val landingFlash = remember { Animatable(0f) }
+    var wasRocketFlying by remember { mutableStateOf(false) }
+    LaunchedEffect(isRocketFlying) {
+        if (!isRocketFlying && wasRocketFlying) {
+            landingFlash.snapTo(1f)
+            landingFlash.animateTo(0f, tween(360, easing = FastOutSlowInEasing))
+        }
+        wasRocketFlying = isRocketFlying
+    }
+
     Box(
         modifier = Modifier
             .size(tokenSizeDp * 1.9f)
@@ -247,6 +262,18 @@ private fun BoxTokenWithGlow(
                         )
                 )
             }
+        }
+
+        if (landingFlash.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .size(tokenSizeDp * (1f + landingFlash.value * 1.2f))
+                    .graphicsLayer { alpha = landingFlash.value }
+                    .background(
+                        Brush.radialGradient(listOf(Color.White, Color.White.copy(alpha = 0f))),
+                        CircleShape
+                    )
+            )
         }
         if (isMovable) {
             val (glowStrong, glowSoft) = MOVABLE_GLOW.getValue(tokenColor)
@@ -292,7 +319,7 @@ private fun BoxTokenWithGlow(
                 contentDescription = "$contentDescription flying",
                 modifier = Modifier
                     .size(tokenSizeDp * 1.5f)
-                    .graphicsLayer { rotationZ = 45f }
+                    .graphicsLayer { rotationZ = rocketAngle }
             )
         } else {
             AsyncImage(
@@ -568,6 +595,32 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     val id = "${t.color}_${t.idx}"
                     val isGliding = state.arrowGlidingToken.value == id
                     val isRocketFlying = state.rocketFlyingToken.value == id
+
+                    // Rocket ka icon udaan ki ASAL SEEDHI (diagonal) direction
+                    // ke mutabiq ghoomta hai (na ke hamesha fixed 45°) — jaisa
+                    // reference video mein tha: rocket seedha apni manzil ki
+                    // taraf, seedhi line mein, sahi angle ke sath udta hai.
+                    // lastRestX/Y hamesha "ruki hui" (non-flying) position yaad
+                    // rakhte hain, taake udaan shuru hote hi ek dafa (remember
+                    // key = isRocketFlying) shuru-se-aakhir tak ka angle nikala
+                    // ja sake.
+                    val lastRestX = remember { mutableStateOf(targetX) }
+                    val lastRestY = remember { mutableStateOf(targetY) }
+                    if (!isRocketFlying) {
+                        lastRestX.value = targetX
+                        lastRestY.value = targetY
+                    }
+                    val rocketAngle = remember(isRocketFlying) {
+                        if (isRocketFlying) {
+                            val dx = (targetX - lastRestX.value).value
+                            val dy = (targetY - lastRestY.value).value
+                            // +90: MAGIC_ROCKET_ICON ka asal artwork nose-up hai,
+                            // atan2 convention mein 0deg = seedha right — is liye
+                            // 90 add karke "up" ko "direction of travel" se align
+                            // karte hain.
+                            Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
+                        } else 0f
+                    }
                     val posTweenMs = when {
                         isRocketFlying -> 620
                         isGliding -> 480
@@ -665,6 +718,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         isMovable = isMovable,
                         isCurrentTurn = isCurrentTurn,
                         isRocketFlying = isRocketFlying,
+                        rocketAngle = rocketAngle,
                         tokenColor = t.color,
                         imageUrl = TOKEN_IMG[t.color],
                         contentDescription = "${t.color} token ${t.idx}",
