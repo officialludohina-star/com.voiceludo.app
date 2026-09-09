@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -185,6 +186,23 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
         return cornerClockwise[(nativeIdx + rotationSteps) % 4]
     }
 
+    // Kisi bhi color ke profile-box ki (BoxWithConstraints ke top-left se)
+    // asal absolute jagah — Golden Dice ki "udaan" animation ka target point
+    // nikalne ke liye, forEach ke bahar bhi reusable.
+    fun profileAbsoluteOffset(color: LudoColor, screenW: Dp, screenH: Dp): Pair<Dp, Dp> {
+        val pos = visualCornerFor(color)
+        val spec = when (pos) {
+            CornerPos.POS_BL -> PosSpec(1f, 79f, -8f, -10f, false)
+            CornerPos.POS_TL -> PosSpec(1f, 10f, -6f, 12f, false)
+            CornerPos.POS_TR -> PosSpec(1f, 10f, 2f, 16f, true)
+            CornerPos.POS_BR -> PosSpec(1f, 79f, 6f, -14f, true)
+        }
+        val xOffset = screenW * (spec.baseX / 100f) + spec.translateX.dp
+        val yOffset = screenH * (spec.baseY / 100f) + spec.translateY.dp
+        val absoluteX = if (spec.alignEnd) screenW - xOffset else xOffset
+        return absoluteX to yOffset
+    }
+
     // #ludoGameScreen: position:fixed; inset:0; background game-bg.webp cover
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenW = maxWidth
@@ -214,6 +232,39 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                     state.tapToken(idx)
                 }
             }
+        }
+
+        // Golden Dice "udaan": jab koi color Golden Dice uthaye, uska icon
+        // board ke beech se uth kar seedha us player ki profile tak udh kar
+        // jata hai — pohanchte hi profile ke pass hamesha ke liye chhota badge
+        // reh jata hai (upar PlayerProfileBox mein).
+        val goldenFlight = remember { Animatable(0f) }
+        var goldenFlightColor by remember { mutableStateOf<LudoColor?>(null) }
+        LaunchedEffect(state.goldenDiceFlightTrigger.value) {
+            if (state.goldenDiceFlightTrigger.value > 0) {
+                goldenFlightColor = state.goldenDiceFlightColor.value
+                goldenFlight.snapTo(0f)
+                goldenFlight.animateTo(1f, animationSpec = tween(700, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                goldenFlightColor = null
+            }
+        }
+        goldenFlightColor?.let { flyColor ->
+            val (targetX, targetY) = profileAbsoluteOffset(flyColor, screenW, screenH)
+            val startX = screenW / 2
+            val startY = screenH / 2
+            val t = goldenFlight.value
+            val curX = startX + (targetX - startX) * t
+            // Halka arc-lift beech mein (jaise waqai udh raha ho, seedhi line mein nahi)
+            val arcLift = 50.dp * (4f * t * (1f - t))
+            val curY = startY + (targetY - startY) * t - arcLift
+            AsyncImage(
+                model = MAGIC_DICE_ICON,
+                contentDescription = "golden dice flying",
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = curX - 20.dp, y = curY - 20.dp)
+                    .size(40.dp)
+            )
         }
 
         // .game-top-icons-wrap: position:absolute; top:8px; left:0; width:100%; height:44px
@@ -347,7 +398,8 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                         // start hote hi) yeh apne aap gayab ho jati hai.
                         showTimerRing = !state.gameOver.value && state.turnTimerColor.value == color,
                         timerSeconds = state.turnTimerSeconds.value,
-                        timerKey = state.turnTimerKey.value
+                        timerKey = state.turnTimerKey.value,
+                        hasGoldenDice = color in state.goldenDiceHolders
                     )
                 }
                 val dice = @Composable {
@@ -655,7 +707,8 @@ private fun PlayerProfileBox(
     rank: Int?,
     showTimerRing: Boolean,
     timerSeconds: Int,
-    timerKey: Int
+    timerKey: Int,
+    hasGoldenDice: Boolean = false
 ) {
     Column(
         modifier = Modifier.width(66.dp),
@@ -708,6 +761,23 @@ private fun PlayerProfileBox(
                         .size(20.dp)
                         .align(Alignment.TopEnd)
                         .offset(x = 4.dp, y = (-6).dp)
+                )
+            }
+            // Is player ne is match mein Golden Dice uthaya hai — chhota badge
+            // ID/profile ke gird, taake sabko pata chale kisne "golden dice"
+            // liya hai. Udaan wali animation khatam hone ke theek baad yeh
+            // yahan namudar hota hai aur poori match ke dauran laga rehta hai.
+            if (hasGoldenDice) {
+                AsyncImage(
+                    model = MAGIC_DICE_ICON,
+                    contentDescription = "golden dice",
+                    modifier = Modifier
+                        .size(18.dp)
+                        .align(Alignment.BottomStart)
+                        .offset(x = (-2).dp, y = 2.dp)
+                        .clip(CircleShape)
+                        .background(Color.White, CircleShape)
+                        .padding(1.dp)
                 )
             }
         }

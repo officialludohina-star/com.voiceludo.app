@@ -76,6 +76,14 @@ class LudoGameState(
     // par le jaye — peeche ek flame/fire trail bhi dikhta hai (jaise asal
     // rocket udta hai).
     var rocketFlyingToken = mutableStateOf<String?>(null)
+    // Jin colors ne is match mein kabhi Golden Dice uthaya hai, unki list —
+    // profile ke pass hamesha ke liye ek chhota badge dikhane ke liye.
+    val goldenDiceHolders = mutableStateListOf<LudoColor>()
+    // Har dafa Golden Dice uthein, yeh color set hota hai taake LudoGameScreen
+    // ek "udaan" (board se profile tak udh kar jane wali) animation chalaye.
+    // Counter isliye hai taake SAME color dobara uthaye to bhi dobara trigger ho.
+    var goldenDiceFlightColor = mutableStateOf<LudoColor?>(null)
+    var goldenDiceFlightTrigger = mutableStateOf(0)
     var movable = mutableStateListOf<Int>()
     var killerFlashPos = mutableStateOf<Int?>(null)
     var killedFlashPos = mutableStateOf<Int?>(null)
@@ -403,7 +411,12 @@ class LudoGameState(
         // Golden-Dice magic effect — walk poora hone ke exact waqt par.
         // (Rocket ka sound ab launch ke theek waqt par upar hi bajta hai,
         // taake "pehle awaz baad mein udaan" wala masla na ho.)
-        if (e.magicBonus) SoundManager.playMagicDice()
+        if (e.magicBonus) {
+            SoundManager.playMagicDice()
+            if (color !in goldenDiceHolders) goldenDiceHolders.add(color)
+            goldenDiceFlightColor.value = color
+            goldenDiceFlightTrigger.value += 1
+        }
         // Token ghar (home) pohanch gaya — firework.
         if (e.reachedHome) SoundManager.playFirework()
 

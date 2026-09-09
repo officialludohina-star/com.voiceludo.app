@@ -282,31 +282,37 @@ private fun BoxTokenWithGlow(
                     .border(2.dp, ringColor.copy(alpha = 0.85f), CircleShape)
             )
         }
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = contentDescription,
-            modifier = Modifier
-                .size(tokenSizeDp)
-                .graphicsLayer {
-                    // Rocket udaan ke dauran token thora bara aur halka tilt ho
-                    // jata hai — taake "hawa mein udh raha hai" wala feel aaye.
-                    if (isRocketFlying) {
-                        scaleX = 1.18f; scaleY = 1.18f
-                        rotationZ = 12f
-                    }
-                }
-                .clip(CircleShape)
-                .background(ludoColorOf(tokenColor))
-                // Pehle yahan hamesha ek MOTA white circle border lagta tha (har
-                // token par, hamesha, chahe kisi ki bhi baari ho) — jis se tokens
-                // "gol gol white daba hua" jaisay dikhte thay, khaas kar red/yellow
-                // par zyada nazar aata (jab image load thori slow ho to yeh white
-                // ring akela hi token ban jata). Ab bohot halka/subtle dark outline
-                // hai — sirf itna ke image na load ho to bhi token ghayab na ho,
-                // lekin koi alag "white circle" nazar nahi aati.
-                .border(0.6.dp, Color.Black.copy(alpha = 0.22f), CircleShape)
-                .clickable(enabled = isMovable, onClick = onTap)
-        )
+        if (isRocketFlying) {
+            // User ne kaha rocket ka icon khud saaf nazar aana chahiye (sirf
+            // flame nahi) — udaan ke poore dauran token ki jagah asal rocket
+            // dikhta hai, land hote hi (isRocketFlying false hote hi) normal
+            // token wapis nazar aata hai.
+            AsyncImage(
+                model = MAGIC_ROCKET_ICON,
+                contentDescription = "$contentDescription flying",
+                modifier = Modifier
+                    .size(tokenSizeDp * 1.5f)
+                    .graphicsLayer { rotationZ = 45f }
+            )
+        } else {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .size(tokenSizeDp)
+                    .clip(CircleShape)
+                    .background(ludoColorOf(tokenColor))
+                    // Pehle yahan hamesha ek MOTA white circle border lagta tha (har
+                    // token par, hamesha, chahe kisi ki bhi baari ho) — jis se tokens
+                    // "gol gol white daba hua" jaisay dikhte thay, khaas kar red/yellow
+                    // par zyada nazar aata (jab image load thori slow ho to yeh white
+                    // ring akela hi token ban jata). Ab bohot halka/subtle dark outline
+                    // hai — sirf itna ke image na load ho to bhi token ghayab na ho,
+                    // lekin koi alag "white circle" nazar nahi aati.
+                    .border(0.6.dp, Color.Black.copy(alpha = 0.22f), CircleShape)
+                    .clickable(enabled = isMovable, onClick = onTap)
+            )
+        }
     }
 }
 
