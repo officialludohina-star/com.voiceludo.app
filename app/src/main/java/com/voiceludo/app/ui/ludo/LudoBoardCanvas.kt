@@ -6,6 +6,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import kotlinx.coroutines.NonCancellable
@@ -165,7 +166,8 @@ private fun BoxTokenWithGlow(
     contentDescription: String,
     onTap: () -> Unit,
     popScale: Float = 1f,
-    popAlpha: Float = 1f
+    popAlpha: Float = 1f,
+    isRocketFlying: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "tokenGlow")
     val glowScale by infiniteTransition.animateFloat(
@@ -199,6 +201,17 @@ private fun BoxTokenWithGlow(
         label = "tokenBounce"
     )
     val bounceDy = if (isMovable) -(tokenSizeDp * 0.16f) * bounceT else 0.dp
+
+    // Flame/fire trail — sirf rocket-flight ke dauran, token ke peeche 3
+    // dhundhle, ghatte size ke orange-red "shoalay" jo pulse karte hain,
+    // taake lage ke waqai rocket ki tarah udh raha hai.
+    val flamePulse by infiniteTransition.animateFloat(
+        initialValue = 0.75f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(140), RepeatMode.Reverse),
+        label = "flamePulse"
+    )
+
     Box(
         modifier = Modifier
             .size(tokenSizeDp * 1.9f)
@@ -213,6 +226,28 @@ private fun BoxTokenWithGlow(
             },
         contentAlignment = Alignment.Center
     ) {
+        if (isRocketFlying) {
+            val flameColors = listOf(
+                Color(0xFFFFD54F) to 0.55f,
+                Color(0xFFFF7043) to 0.75f,
+                Color(0xFFE64A19) to 0.95f
+            )
+            flameColors.forEachIndexed { i, (flameColor, sizeFrac) ->
+                Box(
+                    modifier = Modifier
+                        .size(tokenSizeDp * sizeFrac)
+                        .offset(
+                            y = tokenSizeDp * (0.32f + i * 0.14f) * flamePulse,
+                            x = tokenSizeDp * 0.05f * (if (i % 2 == 0) 1f else -1f)
+                        )
+                        .graphicsLayer { scaleX = flamePulse; scaleY = flamePulse; alpha = 0.85f - i * 0.2f }
+                        .background(
+                            Brush.radialGradient(listOf(flameColor, flameColor.copy(alpha = 0f))),
+                            CircleShape
+                        )
+                )
+            }
+        }
         if (isMovable) {
             val (glowStrong, glowSoft) = MOVABLE_GLOW.getValue(tokenColor)
             // Outer expanding ring — background ke against sabse pehle nazar aata hai
@@ -252,6 +287,14 @@ private fun BoxTokenWithGlow(
             contentDescription = contentDescription,
             modifier = Modifier
                 .size(tokenSizeDp)
+                .graphicsLayer {
+                    // Rocket udaan ke dauran token thora bara aur halka tilt ho
+                    // jata hai — taake "hawa mein udh raha hai" wala feel aaye.
+                    if (isRocketFlying) {
+                        scaleX = 1.18f; scaleY = 1.18f
+                        rotationZ = 12f
+                    }
+                }
                 .clip(CircleShape)
                 .background(ludoColorOf(tokenColor))
                 // Pehle yahan hamesha ek MOTA white circle border lagta tha (har
@@ -518,7 +561,12 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     // na ho.
                     val id = "${t.color}_${t.idx}"
                     val isGliding = state.arrowGlidingToken.value == id
-                    val posTweenMs = if (isGliding) 480 else 160
+                    val isRocketFlying = state.rocketFlyingToken.value == id
+                    val posTweenMs = when {
+                        isRocketFlying -> 620
+                        isGliding -> 480
+                        else -> 160
+                    }
                     val animX by animateDpAsState(
                         targetValue = targetX,
                         animationSpec = tween(posTweenMs, easing = FastOutSlowInEasing),
@@ -541,7 +589,27 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         animationSpec = tween(220, easing = FastOutSlowInEasing),
                         label = "tokenSize"
                     )
-                    val hopDy = 0.dp
+                    // Rocket udaan ke dauran token seedha line mein nahi, balke
+                    // thora upar uth kar (jaise waqai udh raha ho) ek arc mein
+                    // jata hai — beech mein upar, shuru/aakhir mein zameen ke
+                    // barabar.
+                    val flightLift = remember { Animatable(0f) }
+                    LaunchedEffect(isRocketFlying) {
+                        if (isRocketFlying) {
+                            flightLift.animateTo(
+                                targetValue = 0f,
+                                animationSpec = keyframes {
+                                    durationMillis = 620
+                                    0f at 0
+                                    -46f at 310
+                                    0f at 620
+                                }
+                            )
+                        } else {
+                            flightLift.snapTo(0f)
+                        }
+                    }
+                    val hopDy = flightLift.value.dp
 
                     // Yard se path mein pehli dafa nikalne par (poppingToken match
                     // hote hi) chhota sa "pop" (fade-in + scale-up) animation —
@@ -590,6 +658,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         animY = animY + hopDy,
                         isMovable = isMovable,
                         isCurrentTurn = isCurrentTurn,
+                        isRocketFlying = isRocketFlying,
                         tokenColor = t.color,
                         imageUrl = TOKEN_IMG[t.color],
                         contentDescription = "${t.color} token ${t.idx}",

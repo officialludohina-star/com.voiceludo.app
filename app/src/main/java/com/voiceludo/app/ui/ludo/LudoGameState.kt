@@ -70,6 +70,12 @@ class LudoGameState(
     // steps ke bajaye) — taake beech mein kahin bhi token "gayab" (flicker/
     // disappear) na ho, seedha ek hi silsile mein A se B tak nazar aaye.
     var arrowGlidingToken = mutableStateOf<String?>(null)
+    // Jab token Magic Rocket cell trigger kare, is "$color_$idx" key ko set
+    // karte hain taake LudoBoardCanvas token ko normal step-step chalne ke
+    // bajaye seedha ek "udaan" (fly/arc) animation ke sath uski final jagah
+    // par le jaye — peeche ek flame/fire trail bhi dikhta hai (jaise asal
+    // rocket udta hai).
+    var rocketFlyingToken = mutableStateOf<String?>(null)
     var movable = mutableStateListOf<Int>()
     var killerFlashPos = mutableStateOf<Int?>(null)
     var killedFlashPos = mutableStateOf<Int?>(null)
@@ -328,6 +334,14 @@ class LudoGameState(
                     setPos(e.to)
                     delay(480)
                     arrowGlidingToken.value = null
+                } else if (e.rocketBonus) {
+                    // Magic Rocket: normal chalne ke bajaye seedha "udh" kar
+                    // apni final jagah par pohanchta hai.
+                    rocketFlyingToken.value = key
+                    SoundManager.playRocket()
+                    setPos(e.to)
+                    delay(620)
+                    rocketFlyingToken.value = null
                 } else {
                     var pos = 0
                     while (pos < e.to) {
@@ -360,6 +374,19 @@ class LudoGameState(
             setPos(e.to)
             delay(480)
             arrowGlidingToken.value = null
+        } else if (e.rocketBonus) {
+            // Magic Rocket: is move ka poora safar normal chal kar tay karne
+            // ke bajaye, token seedha "udh" (fly) kar apni final jagah par
+            // pohanchta hai — LudoBoardCanvas mein rocketFlyingToken dekh kar
+            // ek lambi arc-glide + peeche flame/fire trail dikhata hai. User
+            // ne yehi kaha tha: "rocket jidhar jana hota hai wahan se udh kar
+            // jis dabbe mein jana hota hai udhar jaye".
+            val key = "${color}_${e.tokenIndex}"
+            rocketFlyingToken.value = key
+            SoundManager.playRocket()
+            setPos(e.to)
+            delay(620)
+            rocketFlyingToken.value = null
         } else {
             // Normal move: har cell ek-ek karke, saaf step-step chal ke.
             var pos = e.from
@@ -373,11 +400,9 @@ class LudoGameState(
         setPos(e.to)
         isMoving.value = false
 
-        // Rocket/Golden-Dice magic effects — walk poora hone ke exact waqt
-        // par (pehle "move" event aate hi turant baj jati thin, jabke token
-        // abhi chalna shuru bhi nahi hua hota tha — is se "awaz pehle aati
-        // hai" wala masla hota tha).
-        if (e.rocketBonus) SoundManager.playRocket()
+        // Golden-Dice magic effect — walk poora hone ke exact waqt par.
+        // (Rocket ka sound ab launch ke theek waqt par upar hi bajta hai,
+        // taake "pehle awaz baad mein udaan" wala masla na ho.)
         if (e.magicBonus) SoundManager.playMagicDice()
         // Token ghar (home) pohanch gaya — firework.
         if (e.reachedHome) SoundManager.playFirework()
