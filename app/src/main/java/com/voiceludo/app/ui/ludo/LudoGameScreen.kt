@@ -673,6 +673,68 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 }
             )
         }
+
+        // ==== TEMP: Rocket flight tuning panel ====
+        // User rocket ki udaan (duration/lift/pre-gap) khud live adjust kar ke
+        // dekhna chahte hain, phir final numbers bata denge jo hum seedha
+        // RocketTuning.kt ke defaults mein lock kar denge (aur yeh panel hata
+        // denge) — bilkul pehle wale block-icon tuner jaisa.
+        var showRocketTuner by remember { mutableStateOf(false) }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 90.dp, start = 4.dp)
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xCC000000))
+                .clickable { SoundManager.playClick(); showRocketTuner = !showRocketTuner },
+            contentAlignment = Alignment.Center
+        ) { Text("\uD83D\uDE80", fontSize = 15.sp) }
+
+        if (showRocketTuner) {
+            var durVal by remember { mutableStateOf(RocketTuning.durationMs.value / 10f) }
+            var liftVal by remember { mutableStateOf(RocketTuning.liftDp.value.toFloat()) }
+            var gapVal by remember { mutableStateOf(RocketTuning.preGapMs.value.toFloat()) }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 124.dp, start = 4.dp, end = 4.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xEE111111))
+                    .padding(10.dp)
+            ) {
+                Text("Rocket Tuner", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+
+                Text("Duration: ${(durVal * 10).toInt()}ms", color = Color(0xFFFFD400), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                Slider(
+                    value = durVal, valueRange = 1f..200f,
+                    onValueChange = { durVal = it; RocketTuning.durationMs.value = (it * 10).toInt() },
+                    modifier = Modifier.width(240.dp)
+                )
+
+                Text("Lift: ${liftVal.toInt()}dp", color = Color(0xFFFFD400), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                Slider(
+                    value = liftVal, valueRange = 1f..200f,
+                    onValueChange = { liftVal = it; RocketTuning.liftDp.value = it.toInt() },
+                    modifier = Modifier.width(240.dp)
+                )
+
+                Text("Pre-gap: ${gapVal.toInt()}ms", color = Color(0xFFFFD400), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                Slider(
+                    value = gapVal, valueRange = 1f..200f,
+                    onValueChange = { gapVal = it; RocketTuning.preGapMs.value = it.toInt() },
+                    modifier = Modifier.width(240.dp)
+                )
+
+                Text(
+                    // Yeh final line copy kar ke bhej dein — hum seedha
+                    // RocketTuning.kt mein lock kar denge.
+                    "duration=${(durVal * 10).toInt()} lift=${liftVal.toInt()} gap=${gapVal.toInt()}",
+                    color = Color(0xFF6EFF8F), fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
     }
 }
 

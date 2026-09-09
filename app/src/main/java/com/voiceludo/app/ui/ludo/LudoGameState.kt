@@ -344,18 +344,13 @@ class LudoGameState(
                     arrowGlidingToken.value = null
                 } else if (e.rocketBonus) {
                     // Magic Rocket: normal chalne ke bajaye seedha "udh" kar
-                    // apni final jagah par pohanchta hai.
+                    // apni final jagah par pohanchta hai. Values ab RocketTuning
+                    // se aati hain (tuning-panel ke sath live adjust hoti hain).
                     rocketFlyingToken.value = key
                     SoundManager.playRocket()
-                    // Ek chhota frame-gap — taake Compose "isRocketFlying=true"
-                    // (aur uska lamba 620ms tween) ko PURANI position ke sath
-                    // pehle recompose kar le, phir position badle. Bagair is
-                    // gap ke, kabhi kabhi dono changes ek hi frame mein lag
-                    // jate the aur token seedha final jagah par "snap" ho
-                    // jata tha — udaan nazar hi nahi aati thi.
-                    delay(16)
+                    delay(RocketTuning.preGapMs.value.toLong())
                     setPos(e.to)
-                    delay(620)
+                    delay(RocketTuning.durationMs.value.toLong())
                     rocketFlyingToken.value = null
                 } else {
                     var pos = 0
@@ -399,12 +394,9 @@ class LudoGameState(
             val key = "${color}_${e.tokenIndex}"
             rocketFlyingToken.value = key
             SoundManager.playRocket()
-            // Ek chhota frame-gap — taake udaan hamesha purani jagah se shuru
-            // ho, seedha final jagah par snap na ho (upar wale comment jaisi
-            // hi wajah).
-            delay(16)
+            delay(RocketTuning.preGapMs.value.toLong())
             setPos(e.to)
-            delay(620)
+            delay(RocketTuning.durationMs.value.toLong())
             rocketFlyingToken.value = null
         } else {
             // Normal move: har cell ek-ek karke, saaf step-step chal ke.

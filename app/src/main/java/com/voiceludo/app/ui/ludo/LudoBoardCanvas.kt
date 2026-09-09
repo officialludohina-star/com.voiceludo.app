@@ -622,7 +622,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         } else 0f
                     }
                     val posTweenMs = when {
-                        isRocketFlying -> 620
+                        isRocketFlying -> RocketTuning.durationMs.value
                         isGliding -> 480
                         else -> 160
                     }
@@ -655,13 +655,15 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     val flightLift = remember { Animatable(0f) }
                     LaunchedEffect(isRocketFlying) {
                         if (isRocketFlying) {
+                            val d = RocketTuning.durationMs.value
+                            val lift = -RocketTuning.liftDp.value.toFloat()
                             flightLift.animateTo(
                                 targetValue = 0f,
                                 animationSpec = keyframes {
-                                    durationMillis = 620
+                                    durationMillis = d
                                     0f at 0
-                                    -46f at 310
-                                    0f at 620
+                                    lift at (d / 2)
+                                    0f at d
                                 }
                             )
                         } else {
