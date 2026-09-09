@@ -361,8 +361,12 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                         Box {
                             // Jis player ki abhi bari hai uske dice-box ke oopar ek green
                             // arrow bounce karta hai (HTML jaisa) — taake turn kiski hai
-                            // yeh turant, saaf saaf nazar aaye.
-                            if (!state.gameOver.value) {
+                            // yeh turant, saaf saaf nazar aaye. User ne kaha: yeh sirf
+                            // usi banday ko dikhe jiski asal mein baari hai — baaki
+                            // players (jo abhi sirf dekh rahe hain) ko yeh arrow nazar
+                            // NA aaye, chahe unhe pata ho ke kiski baari hai (dice-box
+                            // aur token-glow se to sabko pata chal hi jata hai).
+                            if (!state.gameOver.value && isSelf) {
                                 TurnArrow()
                             }
                             PlayerDiceBox(

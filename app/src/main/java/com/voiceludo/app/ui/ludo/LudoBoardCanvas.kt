@@ -9,6 +9,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -252,13 +254,14 @@ private fun BoxTokenWithGlow(
                 .size(tokenSizeDp)
                 .clip(CircleShape)
                 .background(ludoColorOf(tokenColor))
-                // Safety border: agar kabhi token ki asal image (piece-*.webp)
-                // load na ho paye, to token apne hi color ke background wale
-                // cell mein bilkul blend ho kar "ghayab" jaisa lagta tha
-                // (jaise yellow token yellow home-path par). Ab hamesha ek
-                // white outline hota hai taake token kisi bhi background par
-                // saaf nazar aaye, image load ho ya na ho.
-                .border(1.5.dp, Color.White, CircleShape)
+                // Pehle yahan hamesha ek MOTA white circle border lagta tha (har
+                // token par, hamesha, chahe kisi ki bhi baari ho) — jis se tokens
+                // "gol gol white daba hua" jaisay dikhte thay, khaas kar red/yellow
+                // par zyada nazar aata (jab image load thori slow ho to yeh white
+                // ring akela hi token ban jata). Ab bohot halka/subtle dark outline
+                // hai — sirf itna ke image na load ho to bhi token ghayab na ho,
+                // lekin koi alag "white circle" nazar nahi aati.
+                .border(0.6.dp, Color.Black.copy(alpha = 0.22f), CircleShape)
                 .clickable(enabled = isMovable, onClick = onTap)
         )
     }
@@ -552,8 +555,16 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                             popScale.snapTo(0.2f)
                             popAlpha.snapTo(0.2f)
                             try {
-                                popScale.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
-                                popAlpha.animateTo(1f, tween(180, easing = FastOutSlowInEasing))
+                                // User ne kaha token yard se nikalte hi FORAN nazar aana
+                                // chahiye — pehle scale+alpha ek ke baad ek (sequentially,
+                                // total ~440ms) chalte thay. Ab dono EK SATH (parallel)
+                                // aur bohot kam waqt (100ms) mein poore hote hain — token
+                                // teleport jaisa achanak nahi, lekin lagbhag turant nazar
+                                // aata hai.
+                                coroutineScope {
+                                    launch { popScale.animateTo(1f, tween(100, easing = FastOutSlowInEasing)) }
+                                    launch { popAlpha.animateTo(1f, tween(80, easing = FastOutSlowInEasing)) }
+                                }
                             } finally {
                                 // SAFETY NET: agar yeh coroutine beech mein hi cancel ho
                                 // jaye (Compose recomposition/key-churn ki wajah se), to
