@@ -8,7 +8,7 @@ import urllib.request
 import urllib.error
 import http.client
 
-FIXED_REPO_NAME = "official-LUDO-"
+FIXED_REPO_NAME = "com.voiceludo.app"
 
 def run_command(cmd):
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
