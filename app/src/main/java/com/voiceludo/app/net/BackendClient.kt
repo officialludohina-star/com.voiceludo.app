@@ -28,7 +28,7 @@ private const val WS_URL = "wss://voice-party-bekend-sarver-production.up.railwa
 // Avatar upload REST endpoint isi bekend host par hai, sirf wss:// ki jagah
 // https:// aur path /avatar (WS_URL se hi derive kar lete hain taake host
 // do jagah maintain na karna pare).
-private val HTTP_BASE = WS_URL.removeSuffix("/ws").replaceFirst("wss://", "https://").replaceFirst("ws://", "http://")
+internal val HTTP_BASE = WS_URL.removeSuffix("/ws").replaceFirst("wss://", "https://").replaceFirst("ws://", "http://")
 
 // Bekend ke "profiles" map / "opponentProfile" event / "auth" response mein aane
 // wala har player ka naam + avatar (avatar hamesha ek hosted URL hoti hai, kabhi
@@ -152,7 +152,7 @@ object BackendClient {
         .pingInterval(20, TimeUnit.SECONDS)
         .build()
 
-    private var socket: WebSocket? = null
+    @Volatile private var socket: WebSocket? = null
     private val listeners = CopyOnWriteArrayList<ServerListener>()
 
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(ConnState.DISCONNECTED)
@@ -225,8 +225,17 @@ object BackendClient {
         }
     }
 
+    // Har naye socket ko ek "generation" number milta hai. reconnect() purane socket
+    // ko cancel karta hai, to uska onFailure/onClosed baad mein aa kar NAYE socket ki
+    // reference (socket = null) aur connection state bigaad deta tha — phir doosra
+    // connection khul jata. Ab purane socket ke callbacks (generation mismatch) ignore hote hain.
+    private val socketLock = Any()
+    private var socketGen = 0
+
     fun ensureConnected() {
+        synchronized(socketLock) {
         if (socket != null) return
+        val gen = ++socketGen
         _state.value = ConnState.CONNECTING
         // ZAROORI FIX: pehle "authed" sirf onOpen() (async, connection asal
         // mein khulne ke baad) ke andar reset hota tha. Lekin naya socket
@@ -277,17 +286,24 @@ object BackendClient {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e("BackendClient", "ws failure: ${t.message}")
-                socket = null
+                synchronized(socketLock) {
+                    if (gen != socketGen) return
+                    socket = null
+                }
                 _state.value = ConnState.DISCONNECTED
                 notify(ServerMessage.ConnectionClosed(t.message ?: "connection failed"))
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                socket = null
+                synchronized(socketLock) {
+                    if (gen != socketGen) return
+                    socket = null
+                }
                 _state.value = ConnState.DISCONNECTED
                 notify(ServerMessage.ConnectionClosed(reason))
             }
         })
+        }
     }
 
     // authed — true sirf jab is (current) connection par "auth" mil chuka ho.
@@ -376,8 +392,11 @@ object BackendClient {
     // kar naya connection kholta hai — onOpen() khud "resume" bhej dega
     // (inGame abhi tak true hai to).
     fun reconnect() {
-        socket?.cancel()
-        socket = null
+        synchronized(socketLock) {
+            socketGen++
+            socket?.cancel()
+            socket = null
+        }
         ensureConnected()
     }
 
@@ -628,6 +647,11 @@ object BackendClient {
                     inGame = false
                     authed = false
                     ServerMessage.ForceLogout(obj.optString("message"))
+                }
+                // Admin panel mein Save hua — config dobara fetch karo (screens khud update hongi).
+                "configUpdated" -> {
+                    AppConfigStore.refresh(force = true)
+                    null
                 }
                 else -> null
             }

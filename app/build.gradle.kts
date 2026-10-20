@@ -52,6 +52,8 @@ dependencies {
     // GIF animate karne ke liye zaroori hai — warna dice-roll-animation.gif sirf ek static
     // frame dikhata hai, chalta nahi (Coil GIF frames ko by default decode nahi karta).
     implementation("io.coil-kt:coil-gif:2.6.0")
+    // Admin panel se aane wali SVG files dikhane ke liye
+    implementation("io.coil-kt:coil-svg:2.6.0")
     // Bekend (Go WebSocket server) se connect karne aur EmailJS ko real OTP email
     // bhejne ke liye — dono hi plain HTTP/WS calls hain, isliye halki si OkHttp
     // library kaafi hai (koi bhaari Retrofit/Ktor waghera nahi chahiye).

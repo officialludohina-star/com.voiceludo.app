@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.voiceludo.app.ui.common.ConfigScreenBackground
+import com.voiceludo.app.ui.common.ConfigScreenElements
 import coil.compose.SubcomposeAsyncImage
 import com.voiceludo.app.net.BackendClient
 import com.voiceludo.app.net.ServerMessage
@@ -123,6 +125,8 @@ fun LudoMatchingScreen(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+        // Admin panel ("Game start screen") ka background — panel mein na bana ho to kuch nahi
+        ConfigScreenBackground("matching")
 
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 34.dp),
@@ -233,6 +237,9 @@ fun LudoMatchingScreen(
                 )
             }
         }
+
+        // Admin panel ("Game start screen") ke icons / SVG / text
+        ConfigScreenElements("matching", navController)
 
         // Close button — matchmaking queue se nikal jao
         Box(

@@ -30,7 +30,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.voiceludo.app.audio.SoundManager
+import com.voiceludo.app.net.AppConfigStore
 import com.voiceludo.app.net.BackendClient
+import com.voiceludo.app.ui.common.ConfigButtonsOverlay
+import com.voiceludo.app.ui.common.GiftsDialog
+import com.voiceludo.app.ui.common.cfgAnimation
+import com.voiceludo.app.ui.common.runConfigAction
 import com.voiceludo.app.net.ServerMessage
 import com.voiceludo.app.net.SessionStore
 
@@ -41,55 +46,33 @@ private const val HOME_BG_IMG = "file:///android_asset/img/lobby_bg.png"
 private const val NAV_GLOW_IMG = "file:///android_asset/img/selected-light-green-glow-transparent.png"
 private const val PILL_BG_IMG = "file:///android_asset/img/bg-add-coin.png"
 
-// ---- Home-page icon layout: har icon ki final position (Left/Right, Up/Down)
-// aur Size — tuning panel se confirm ki gayi values yahan permanently bake kar
-// di gayi hain (panel ab hata diya gaya hai, koi runtime editing nahi hoti). ----
-private data class IconAdjust(
-    val x: Int = 0,      // Left/Right, px
-    val y: Int = 0,      // Up/Down, px
-    val size: Int = 100  // %, 100 = default
-)
+// Home screen ka layout ab server (admin panel) se aata hai — AppConfigStore.
+// Server na mile to wohi purani baked values chalti hain (AppConfigStore mein).
+private fun cfgImg(key: String, default: String): String =
+    AppConfigStore.element(key).image.ifBlank { default }
 
-private val HOME_LAYOUT: Map<String, IconAdjust> = mapOf(
-    "avatar" to IconAdjust(x = -8, y = 5, size = 100),
-    "coinPill" to IconAdjust(x = -2, y = 7, size = 100),
-    "gemPill" to IconAdjust(x = -1, y = 7, size = 100),
-    "shop" to IconAdjust(x = 3, y = 8, size = 159),
-    "settings" to IconAdjust(x = 2, y = 5, size = 108),
-    "modeCard1" to IconAdjust(x = -9, y = 196, size = 104),
-    "modeCard2" to IconAdjust(x = 7, y = 195, size = 104),
-    "navEvents" to IconAdjust(x = -23, y = 6, size = 93),
-    "navBattle" to IconAdjust(x = -32, y = 13, size = 104),
-    "navChat" to IconAdjust(x = -19, y = 8, size = 112),
-    "navSocial" to IconAdjust(x = -1, y = 11, size = 106)
-)
+private fun cfgLabel(key: String, default: String): String =
+    AppConfigStore.element(key).label.ifBlank { default }
 
-// Modifier extension — kisi bhi icon/card par lagao, HOME_LAYOUT ke mutabiq
-// fixed offset + size apply ho jata hai.
+// Kisi bhi icon/card par lagao — panel ke mutabiq offset, size, dikhna/chhupna
+// aur animation apply hota hai.
+@Composable
 private fun Modifier.homeLayout(key: String): Modifier {
-    val a = HOME_LAYOUT[key] ?: IconAdjust()
+    val e = AppConfigStore.element(key)
     return this
-        .offset(x = a.x.dp, y = a.y.dp)
-        .graphicsLayer(scaleX = a.size / 100f, scaleY = a.size / 100f)
+        .offset(x = e.x.dp, y = e.y.dp)
+        .graphicsLayer(
+            scaleX = e.size / 100f,
+            scaleY = e.size / 100f,
+            alpha = if (e.visible) 1f else 0f
+        )
+        .cfgAnimation(e.animation)
 }
-
-// Coins/diamonds ab bekend se aate hain (signup/login ke "auth" jawab se, aur
-// jeetne/extra-roll khareedne par "wallet" event se). 10,000 se upar amount ko
-// short form mein dikhate hain (jaise "10k", "24.5k", "1.2M") — 10,000 se neechay
-// pura number ("9,450" waghera).
-private fun formatAmount(v: Long): String = when {
-    v >= 1_000_000 -> String.format("%.1fM", v / 1_000_000.0)
-    v >= 10_000 -> {
-        val k = v / 1000.0
-        if (k == k.toLong().toDouble()) "${k.toLong()}k" else String.format("%.1fk", k)
-    }
-    else -> "%,d".format(v)
-}
-
 
 @Composable
 fun YallaHomeScreen(navController: NavController) {
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showGifts by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     // "Arafta" lobby background music — pehle sirf matching (opponent-dhoondte)
@@ -151,15 +134,39 @@ fun YallaHomeScreen(navController: NavController) {
             ) {
                 TopBar(
                     onAvatarClick = { navController.navigate("vp_profile_edit") { launchSingleTop = true } },
-                    onSettingsClick = { showSettingsDialog = true }
+                    onSettingsClick = { showSettingsDialog = true },
+                    onShopClick = {
+                        val a = AppConfigStore.element("shop").action
+                        if (a.isNotBlank()) {
+                            runConfigAction(
+                                a, navController, context,
+                                onOpenSettings = { showSettingsDialog = true },
+                                onOpenGifts = { showGifts = true }
+                            )
+                        }
+                    }
                 )
                 Spacer(Modifier.height(6.dp))
                 StatRow()
                 Spacer(Modifier.height(28.dp))
                 ModeGrid(navController)
             }
-            BottomNav()
+            BottomNav(
+                navController = navController,
+                onOpenSettings = { showSettingsDialog = true },
+                onOpenGifts = { showGifts = true }
+            )
         }
+        // Panel se banaye gaye naye buttons (position/size/animation/action sab server se)
+        ConfigButtonsOverlay(
+            navController = navController,
+            onOpenSettings = { showSettingsDialog = true },
+            onOpenGifts = { showGifts = true }
+        )
+    }
+
+    if (showGifts) {
+        GiftsDialog(onDismiss = { showGifts = false })
     }
 
     if (showSettingsDialog) {
@@ -221,7 +228,7 @@ private fun SettingsInfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) {
+private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}, onShopClick: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     // Home ka avatar hamesha profile screen mein save ki hui photo dikhata hai
     // (HTML ke #homeAvatarImg jaisa) — agar kuch save nahi hui to default icon.
@@ -249,7 +256,7 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) 
         onDispose { BackendClient.removeListener(listener) }
     }
     val avatarModel: Any = when {
-        savedAvatar.isEmpty() -> "file:///android_asset/img/user-icon.png"
+        savedAvatar.isEmpty() -> cfgImg("avatar", "file:///android_asset/img/user-icon.png")
         savedAvatar.startsWith("http") -> savedAvatar
         else -> java.io.File(savedAvatar)
     }
@@ -280,7 +287,7 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) 
 
         Box(modifier = Modifier.homeLayout("coinPill")) {
             Pill(
-                iconUrl = "file:///android_asset/img/coin-icon.webp",
+                iconUrl = cfgImg("coinPill", "file:///android_asset/img/coin-icon.webp"),
                 value = formatAmount(coins),
                 valueColor = Color(0xFFffd700),
                 addBg = Color.Transparent,
@@ -298,7 +305,7 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) 
 
         Box(modifier = Modifier.homeLayout("gemPill")) {
             Pill(
-                iconUrl = "file:///android_asset/img/diamond.png",
+                iconUrl = cfgImg("gemPill", "file:///android_asset/img/diamond.png"),
                 value = formatAmount(diamonds),
                 valueColor = Color(0xFF00e5ff),
                 addBg = Color.Transparent,
@@ -315,13 +322,13 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}) 
         Spacer(Modifier.weight(1f))
 
         AsyncImage(
-            model = "file:///android_asset/img/shop-cart.png",
+            model = cfgImg("shop", "file:///android_asset/img/shop-cart.png"),
             contentDescription = "shop",
-            modifier = Modifier.size(26.dp).homeLayout("shop")
+            modifier = Modifier.size(26.dp).homeLayout("shop").clickable { SoundManager.playClick(); onShopClick() }
         )
         Spacer(Modifier.width(14.dp))
         AsyncImage(
-            model = "file:///android_asset/img/setting-icon.webp",
+            model = cfgImg("settings", "file:///android_asset/img/setting-icon.webp"),
             contentDescription = "settings",
             modifier = Modifier
                 .size(34.dp)
@@ -406,15 +413,15 @@ private fun ModeGrid(navController: NavController) {
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         ModeCard(
-            imageUrl = "file:///android_asset/img/2-4-players.png",
-            label = "2&4 Players",
+            imageUrl = cfgImg("modeCard1", "file:///android_asset/img/2-4-players.png"),
+            label = cfgLabel("modeCard1", "2&4 Players"),
             gradient = Brush.linearGradient(listOf(Color(0xFFf7b733), Color(0xFFc46b1a))),
             modifier = Modifier.weight(1f).homeLayout("modeCard1")
         ) { navController.navigate("ludo_mode_select") }
 
         ModeCard(
-            imageUrl = "file:///android_asset/img/team.png",
-            label = "Team",
+            imageUrl = cfgImg("modeCard2", "file:///android_asset/img/team.png"),
+            label = cfgLabel("modeCard2", "Team"),
             gradient = Brush.linearGradient(listOf(Color(0xFF8a7bd8), Color(0xFF5a4bc4))),
             modifier = Modifier.weight(1f).homeLayout("modeCard2")
         ) { /* TODO: Team mode abhi implement nahi hui */ }
@@ -457,8 +464,14 @@ private fun ModeCard(
 }
 
 @Composable
-private fun BottomNav() {
+private fun BottomNav(navController: NavController, onOpenSettings: () -> Unit, onOpenGifts: () -> Unit) {
     var active by remember { mutableStateOf("Events") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Panel mein icon par "Tap par kaam" (jaise Page kholo) set ho to wohi chalta hai.
+    val go: (String) -> Unit = { key ->
+        val a = AppConfigStore.element(key).action
+        if (a.isNotBlank()) runConfigAction(a, navController, context, onOpenSettings, onOpenGifts)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -466,10 +479,10 @@ private fun BottomNav() {
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        NavItem("file:///android_asset/img/Events.png", "Events", active == "Events", Modifier.homeLayout("navEvents")) { active = "Events" }
-        NavItem("file:///android_asset/img/Battle.png", "Battle", active == "Battle", Modifier.homeLayout("navBattle")) { active = "Battle" }
-        NavItem("file:///android_asset/img/Chat.png", "Chat", active == "Chat", Modifier.homeLayout("navChat")) { active = "Chat" }
-        NavItem("file:///android_asset/img/Social.png", "Social", active == "Social", Modifier.homeLayout("navSocial")) { active = "Social" }
+        NavItem(cfgImg("navEvents", "file:///android_asset/img/Events.png"), cfgLabel("navEvents", "Events"), active == "Events", Modifier.homeLayout("navEvents")) { active = "Events"; go("navEvents") }
+        NavItem(cfgImg("navBattle", "file:///android_asset/img/Battle.png"), cfgLabel("navBattle", "Battle"), active == "Battle", Modifier.homeLayout("navBattle")) { active = "Battle"; go("navBattle") }
+        NavItem(cfgImg("navChat", "file:///android_asset/img/Chat.png"), cfgLabel("navChat", "Chat"), active == "Chat", Modifier.homeLayout("navChat")) { active = "Chat"; go("navChat") }
+        NavItem(cfgImg("navSocial", "file:///android_asset/img/Social.png"), cfgLabel("navSocial", "Social"), active == "Social", Modifier.homeLayout("navSocial")) { active = "Social"; go("navSocial") }
     }
 }
 

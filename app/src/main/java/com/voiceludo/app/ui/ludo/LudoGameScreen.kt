@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.voiceludo.app.ui.common.ConfigScreenBackground
+import com.voiceludo.app.ui.common.ConfigScreenElements
 import coil.compose.AsyncImage
 import com.voiceludo.app.audio.SoundManager
 import com.voiceludo.app.net.BackendClient
@@ -556,6 +558,9 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
         }
 
         if (state.gameOver.value) {
+            // Admin panel ("Game over screen") ka background aur icons — result card ke neeche
+            ConfigScreenBackground("result")
+            ConfigScreenElements("result", navController)
             val winnerC = state.winnerColor.value
             val winnerName = winnerC?.let { state.profiles[it]?.name?.takeIf(String::isNotBlank) ?: it.name } ?: "?"
             val loserNames = state.players.filter { it != winnerC }

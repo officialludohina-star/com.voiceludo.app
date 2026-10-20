@@ -32,6 +32,9 @@ import androidx.navigation.NavType
 import coil.Coil
 import coil.ImageLoader
 import coil.decode.GifDecoder
+import coil.decode.SvgDecoder
+import com.voiceludo.app.net.AppConfigStore
+import com.voiceludo.app.ui.common.ConfigPageScreen
 import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
@@ -96,6 +99,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         applyImmersiveFullScreen()
         com.voiceludo.app.audio.SoundManager.init(this)
+        AppConfigStore.init(applicationContext)
 
         // Dice-roll GIF (aur koi bhi doosri animated GIF) ko sahi se animate karne ke liye
         // Coil ke default ImageLoader mein GIF decoder register karna zaroori hai — warna
@@ -116,6 +120,8 @@ class MainActivity : ComponentActivity() {
                 } else {
                     add(GifDecoder.Factory())
                 }
+                // Admin panel ki (static) SVG files ke liye
+                add(SvgDecoder.Factory())
             }
             .memoryCache {
                 MemoryCache.Builder(this)
@@ -218,6 +224,10 @@ class MainActivity : ComponentActivity() {
                                 SetPasswordScreen(navController, method = method, contact = contact)
                             }
                             composable("vp_home") { YallaHomeScreen(navController) }
+                            // Admin panel se banaye gaye naye pages
+                            composable("vp_page/{id}") { entry ->
+                                ConfigPageScreen(navController, entry.arguments?.getString("id") ?: "")
+                            }
                             composable("vp_profile_edit") { ProfileEditScreen(navController) }
                             composable("ludo_mode_select") { LudoModeSelectScreen(navController) }
                             composable("ludo_matching/{mode}/{players}/{magic}/{betIndex}") { backStackEntry ->
@@ -258,6 +268,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         com.voiceludo.app.audio.SoundManager.resumeLobbyMusic()
+        // App wapis khulte hi panel ki latest settings check karo (4 second se pehle dobara nahi).
+        AppConfigStore.refresh()
     }
 
     override fun onDestroy() {
