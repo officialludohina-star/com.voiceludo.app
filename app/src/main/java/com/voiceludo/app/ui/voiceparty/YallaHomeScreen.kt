@@ -69,6 +69,19 @@ private fun Modifier.homeLayout(key: String): Modifier {
         .cfgAnimation(e.animation)
 }
 
+// Coins/diamonds ab bekend se aate hain (signup/login ke "auth" jawab se, aur
+// jeetne/extra-roll khareedne par "wallet" event se). 10,000 se upar amount ko
+// short form mein dikhate hain (jaise "10k", "24.5k", "1.2M") — 10,000 se neechay
+// pura number ("9,450" waghera).
+private fun formatAmount(v: Long): String = when {
+    v >= 1_000_000 -> String.format("%.1fM", v / 1_000_000.0)
+    v >= 10_000 -> {
+        val k = v / 1000.0
+        if (k == k.toLong().toDouble()) "${k.toLong()}k" else String.format("%.1fk", k)
+    }
+    else -> "%,d".format(v)
+}
+
 @Composable
 fun YallaHomeScreen(navController: NavController) {
     var showSettingsDialog by remember { mutableStateOf(false) }
