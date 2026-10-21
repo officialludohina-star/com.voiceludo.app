@@ -14,6 +14,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // SVGA player (YY ki .svga animation files) JitPack se aata hai
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
