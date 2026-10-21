@@ -58,4 +58,6 @@ dependencies {
     // bhejne ke liye — dono hi plain HTTP/WS calls hain, isliye halki si OkHttp
     // library kaafi hai (koi bhaari Retrofit/Ktor waghera nahi chahiye).
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Admin panel se aane wali .svga animation files chalane ke liye
+    implementation("com.github.yyued:SVGAPlayer-Android:2.6.1")
 }

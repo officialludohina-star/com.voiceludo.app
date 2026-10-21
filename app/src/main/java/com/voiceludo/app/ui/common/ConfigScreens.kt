@@ -110,7 +110,9 @@ fun RemoteArt(
     contentScale: ContentScale = ContentScale.Fit,
     contentDescription: String? = null
 ) {
-    if (url.startsWith(HTTP_BASE) && url.contains("/a/") && url.endsWith(".svg")) {
+    if (url.startsWith(HTTP_BASE) && url.contains("/a/") && url.endsWith(".svga")) {
+        SvgaArt(url, modifier, cover = contentScale == ContentScale.Crop)
+    } else if (url.startsWith(HTTP_BASE) && url.contains("/a/") && url.endsWith(".svg")) {
         SvgWebArt(url, modifier, cover = contentScale == ContentScale.Crop)
     } else {
         AsyncImage(
@@ -118,6 +120,48 @@ fun RemoteArt(
             contentDescription = contentDescription,
             modifier = modifier,
             contentScale = contentScale
+        )
+    }
+}
+
+// .svga (YY SVGA animation) — SVGAPlayer-Android se, loop mein chalti hai.
+@Composable
+private fun SvgaArt(url: String, modifier: Modifier, cover: Boolean) {
+    val holder = remember { arrayOfNulls<com.opensource.svgaplayer.SVGAImageView>(1) }
+    DisposableEffect(Unit) {
+        onDispose {
+            holder[0]?.stopAnimation(true)
+            holder[0] = null
+        }
+    }
+    key(url) {
+        AndroidView(
+            modifier = modifier,
+            factory = { ctx ->
+                com.opensource.svgaplayer.SVGAImageView(ctx).apply {
+                    holder[0] = this
+                    loops = 0 // 0 = hamesha chalti rahe
+                    clearsAfterStop = false
+                    scaleType = if (cover) android.widget.ImageView.ScaleType.CENTER_CROP
+                    else android.widget.ImageView.ScaleType.FIT_CENTER
+                    isClickable = false
+                    isFocusable = false
+                    val self = this
+                    runCatching {
+                        com.opensource.svgaplayer.SVGAParser(ctx).decodeFromURL(
+                            java.net.URL(url),
+                            object : com.opensource.svgaplayer.SVGAParser.ParseCompletion {
+                                override fun onComplete(videoItem: com.opensource.svgaplayer.SVGAVideoEntity) {
+                                    self.setVideoItem(videoItem)
+                                    self.startAnimation()
+                                }
+
+                                override fun onError() {}
+                            }
+                        )
+                    }
+                }
+            }
         )
     }
 }
@@ -175,6 +219,9 @@ fun runConfigAction(
         action == "openGifts" -> onOpenGifts()
         action == "openShop" ->
             Toast.makeText(context, "Shop jaldi aa raha hai", Toast.LENGTH_SHORT).show()
+        action == "openProfile" -> navController.navigate("vp_profile_edit") { launchSingleTop = true }
+        action == "openModeSelect" -> navController.navigate("ludo_mode_select") { launchSingleTop = true }
+        action == "openHome" -> navController.navigate("vp_home") { launchSingleTop = true }
         action.startsWith("openPage:") -> {
             val id = action.removePrefix("openPage:")
             navController.navigate("vp_page/$id") { launchSingleTop = true }
@@ -196,7 +243,13 @@ fun runConfigAction(
 @Composable
 fun ConfigScreenBackground(screenId: String) {
     val sc = AppConfigStore.screen(screenId) ?: return
-    Box(modifier = Modifier.fillMaxSize().background(parseConfigColor(sc.bgColor, Color(0xFF0B2A22)))) {
+    // bgColor khali ho to rang nahi lagta — neeche ki app ki apni default background dikhti rehti hai.
+    val base = if (sc.bgColor.isNotBlank()) {
+        Modifier.fillMaxSize().background(parseConfigColor(sc.bgColor, Color(0xFF0B2A22)))
+    } else {
+        Modifier.fillMaxSize()
+    }
+    Box(modifier = base) {
         if (sc.bgImage.isNotBlank()) {
             RemoteArt(sc.bgImage, Modifier.fillMaxSize(), ContentScale.Crop)
         }

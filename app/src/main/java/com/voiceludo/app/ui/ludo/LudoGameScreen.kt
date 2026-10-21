@@ -217,6 +217,9 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+        // Admin panel (Screens > Game board) ka background aur decor — board ke PEECHE rehta hai
+        ConfigScreenBackground("game")
+        ConfigScreenElements("game", navController)
 
         // .game-board-wrap: position:absolute; top:50%; left:50%; translate(-50%,-50%);
         // width:100vw; height:auto (square board image)

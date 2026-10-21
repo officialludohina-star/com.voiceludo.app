@@ -167,7 +167,7 @@ object AppConfigStore {
         })
     }
 
-    private val ASSET_PATH = Regex("^/a/[a-f0-9]{16}\\.svg$")
+    private val ASSET_PATH = Regex("^/a/[a-f0-9]{16}\\.svga?$")
 
     // Image link: apni SVG ("/a/<id>.svg") to poora https link bana do, baaki sirf
     // saaf-suthre https links. Kuch bhi aur (quotes, spaces, http://) khali ho jata hai.

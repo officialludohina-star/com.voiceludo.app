@@ -50,6 +50,8 @@ fun LudoModeSelectScreen(navController: NavController) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+        // Admin panel (Screens > Mode select) ka background
+        com.voiceludo.app.ui.common.ConfigScreenBackground("modeSelect")
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -206,6 +208,9 @@ fun LudoModeSelectScreen(navController: NavController) {
 
             Spacer(Modifier.height(20.dp))
         }
+
+        // Admin panel (Screens > Mode select) ke extra icons / SVG / text / buttons
+        com.voiceludo.app.ui.common.ConfigScreenElements("modeSelect", navController)
 
         // CLOSE BUTTON
         Box(

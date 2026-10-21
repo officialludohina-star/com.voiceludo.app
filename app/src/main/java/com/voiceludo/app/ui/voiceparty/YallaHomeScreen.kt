@@ -33,6 +33,9 @@ import com.voiceludo.app.audio.SoundManager
 import com.voiceludo.app.net.AppConfigStore
 import com.voiceludo.app.net.BackendClient
 import com.voiceludo.app.ui.common.ConfigButtonsOverlay
+import com.voiceludo.app.ui.common.ConfigScreenBackground
+import com.voiceludo.app.ui.common.ConfigScreenElements
+import com.voiceludo.app.ui.common.RemoteArt
 import com.voiceludo.app.ui.common.GiftsDialog
 import com.voiceludo.app.ui.common.cfgAnimation
 import com.voiceludo.app.ui.common.runConfigAction
@@ -67,19 +70,6 @@ private fun Modifier.homeLayout(key: String): Modifier {
             alpha = if (e.visible) 1f else 0f
         )
         .cfgAnimation(e.animation)
-}
-
-// Coins/diamonds ab bekend se aate hain (signup/login ke "auth" jawab se, aur
-// jeetne/extra-roll khareedne par "wallet" event se). 10,000 se upar amount ko
-// short form mein dikhate hain (jaise "10k", "24.5k", "1.2M") — 10,000 se neechay
-// pura number ("9,450" waghera).
-private fun formatAmount(v: Long): String = when {
-    v >= 1_000_000 -> String.format("%.1fM", v / 1_000_000.0)
-    v >= 10_000 -> {
-        val k = v / 1000.0
-        if (k == k.toLong().toDouble()) "${k.toLong()}k" else String.format("%.1fk", k)
-    }
-    else -> "%,d".format(v)
 }
 
 @Composable
@@ -130,6 +120,23 @@ fun YallaHomeScreen(navController: NavController) {
         }
     }
 
+    // Har home icon/button ke liye: panel mein "Tap par kaam" set ho to wohi chalta hai,
+    // warna button ka purana default kaam (fallback). Panel mein chhupaya hua button tap nahi hota.
+    val tap: (String, () -> Unit) -> Unit = { key, fallback ->
+        val e = AppConfigStore.element(key)
+        if (e.visible) {
+            if (e.action.isNotBlank()) {
+                runConfigAction(
+                    e.action, navController, context,
+                    onOpenSettings = { showSettingsDialog = true },
+                    onOpenGifts = { showGifts = true }
+                )
+            } else {
+                fallback()
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF051a0f))) {
         AsyncImage(
             model = HOME_BG_IMG,
@@ -137,6 +144,8 @@ fun YallaHomeScreen(navController: NavController) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+        // Admin panel (Screens > Home) ka background — panel mein na bana ho to upar ki default image chalti hai
+        ConfigScreenBackground("home")
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -146,30 +155,21 @@ fun YallaHomeScreen(navController: NavController) {
                     .padding(horizontal = 16.dp)
             ) {
                 TopBar(
-                    onAvatarClick = { navController.navigate("vp_profile_edit") { launchSingleTop = true } },
-                    onSettingsClick = { showSettingsDialog = true },
-                    onShopClick = {
-                        val a = AppConfigStore.element("shop").action
-                        if (a.isNotBlank()) {
-                            runConfigAction(
-                                a, navController, context,
-                                onOpenSettings = { showSettingsDialog = true },
-                                onOpenGifts = { showGifts = true }
-                            )
-                        }
-                    }
+                    onAvatarClick = { tap("avatar") { navController.navigate("vp_profile_edit") { launchSingleTop = true } } },
+                    onSettingsClick = { tap("settings") { showSettingsDialog = true } },
+                    onShopClick = { tap("shop") { } },
+                    onCoinClick = { tap("coinPill") { } },
+                    onGemClick = { tap("gemPill") { } }
                 )
                 Spacer(Modifier.height(6.dp))
-                StatRow()
+                StatRow(tap = tap)
                 Spacer(Modifier.height(28.dp))
-                ModeGrid(navController)
+                ModeGrid(tap = { key, fallback -> tap(key, fallback) }, navController = navController)
             }
-            BottomNav(
-                navController = navController,
-                onOpenSettings = { showSettingsDialog = true },
-                onOpenGifts = { showGifts = true }
-            )
+            BottomNav(tap = tap)
         }
+        // Admin panel (Screens > Home) ke extra icons / SVG / text / buttons
+        ConfigScreenElements("home", navController)
         // Panel se banaye gaye naye buttons (position/size/animation/action sab server se)
         ConfigButtonsOverlay(
             navController = navController,
@@ -241,7 +241,13 @@ private fun SettingsInfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}, onShopClick: () -> Unit = {}) {
+private fun TopBar(
+    onAvatarClick: () -> Unit,
+    onSettingsClick: () -> Unit = {},
+    onShopClick: () -> Unit = {},
+    onCoinClick: () -> Unit = {},
+    onGemClick: () -> Unit = {}
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     // Home ka avatar hamesha profile screen mein save ki hui photo dikhata hai
     // (HTML ke #homeAvatarImg jaisa) — agar kuch save nahi hui to default icon.
@@ -287,18 +293,27 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}, 
                     .background(Brush.linearGradient(listOf(Color(0xFF22c55e), Color(0xFFa349ff)))),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = avatarModel,
-                    contentDescription = "avatar",
-                    modifier = Modifier.size(46.dp).clip(CircleShape),
-                    contentScale = if (savedAvatar.isEmpty()) ContentScale.Fit else ContentScale.Crop
-                )
+                if (avatarModel is String) {
+                    RemoteArt(
+                        avatarModel,
+                        Modifier.size(46.dp).clip(CircleShape),
+                        if (savedAvatar.isEmpty()) ContentScale.Fit else ContentScale.Crop,
+                        "avatar"
+                    )
+                } else {
+                    AsyncImage(
+                        model = avatarModel,
+                        contentDescription = "avatar",
+                        modifier = Modifier.size(46.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
         }
 
         Spacer(Modifier.width(6.dp))
 
-        Box(modifier = Modifier.homeLayout("coinPill")) {
+        Box(modifier = Modifier.homeLayout("coinPill").clickable { SoundManager.playClick(); onCoinClick() }) {
             Pill(
                 iconUrl = cfgImg("coinPill", "file:///android_asset/img/coin-icon.webp"),
                 value = formatAmount(coins),
@@ -316,7 +331,7 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}, 
 
         Spacer(Modifier.width(6.dp))
 
-        Box(modifier = Modifier.homeLayout("gemPill")) {
+        Box(modifier = Modifier.homeLayout("gemPill").clickable { SoundManager.playClick(); onGemClick() }) {
             Pill(
                 iconUrl = cfgImg("gemPill", "file:///android_asset/img/diamond.png"),
                 value = formatAmount(diamonds),
@@ -334,14 +349,14 @@ private fun TopBar(onAvatarClick: () -> Unit, onSettingsClick: () -> Unit = {}, 
 
         Spacer(Modifier.weight(1f))
 
-        AsyncImage(
-            model = cfgImg("shop", "file:///android_asset/img/shop-cart.png"),
+        RemoteArt(
+            url = cfgImg("shop", "file:///android_asset/img/shop-cart.png"),
             contentDescription = "shop",
             modifier = Modifier.size(26.dp).homeLayout("shop").clickable { SoundManager.playClick(); onShopClick() }
         )
         Spacer(Modifier.width(14.dp))
-        AsyncImage(
-            model = cfgImg("settings", "file:///android_asset/img/setting-icon.webp"),
+        RemoteArt(
+            url = cfgImg("settings", "file:///android_asset/img/setting-icon.webp"),
             contentDescription = "settings",
             modifier = Modifier
                 .size(34.dp)
@@ -371,7 +386,7 @@ private fun Pill(
                 .padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-        AsyncImage(model = iconUrl, contentDescription = null, modifier = Modifier.size(24.dp))
+        RemoteArt(url = iconUrl, contentDescription = null, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(6.dp))
         Text(value, color = valueColor, fontWeight = FontWeight.Black, fontSize = 13.sp)
         Spacer(Modifier.width(4.dp))
@@ -388,6 +403,7 @@ private fun Pill(
 
 @Composable
 private fun StatRow(
+    tap: (String, () -> Unit) -> Unit = { _, _ -> },
     unlockW: Int = 160, unlockH: Int = 76, unlockOffX: Int = -16, unlockOffY: Int = 2,
     rankW: Int = 180, rankH: Int = 76, rankOffX: Int = 0, rankOffY: Int = 0
 ) {
@@ -397,30 +413,34 @@ private fun StatRow(
     ) {
         // Pehle se chhota kiya gaya aur left side ki taraf rakha gaya — size/position
         // debug panel (gear icon) se live tune kiye gaye numbers yahan baake hain.
-        AsyncImage(
-            model = "file:///android_asset/img/unlock_level4_badge.webp",
+        RemoteArt(
+            url = cfgImg("unlockBadge", "file:///android_asset/img/unlock_level4_badge.webp"),
             contentDescription = "Unlock at Level 4",
             contentScale = ContentScale.FillBounds,
             modifier = Modifier
                 .width(unlockW.dp)
                 .height(unlockH.dp)
                 .offset(x = unlockOffX.dp, y = unlockOffY.dp)
+                .homeLayout("unlockBadge")
+                .clickable { tap("unlockBadge") { } }
         )
         Spacer(Modifier.width(8.dp))
-        AsyncImage(
-            model = "file:///android_asset/img/rank_level4_badge.webp",
+        RemoteArt(
+            url = cfgImg("rankBadge", "file:///android_asset/img/rank_level4_badge.webp"),
             contentDescription = "Rank, Unlock at Level 4",
             contentScale = ContentScale.FillBounds,
             modifier = Modifier
                 .width(rankW.dp)
                 .height(rankH.dp)
                 .offset(x = rankOffX.dp, y = rankOffY.dp)
+                .homeLayout("rankBadge")
+                .clickable { tap("rankBadge") { } }
         )
     }
 }
 
 @Composable
-private fun ModeGrid(navController: NavController) {
+private fun ModeGrid(navController: NavController, tap: (String, () -> Unit) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -430,14 +450,14 @@ private fun ModeGrid(navController: NavController) {
             label = cfgLabel("modeCard1", "2&4 Players"),
             gradient = Brush.linearGradient(listOf(Color(0xFFf7b733), Color(0xFFc46b1a))),
             modifier = Modifier.weight(1f).homeLayout("modeCard1")
-        ) { navController.navigate("ludo_mode_select") }
+        ) { tap("modeCard1") { navController.navigate("ludo_mode_select") } }
 
         ModeCard(
             imageUrl = cfgImg("modeCard2", "file:///android_asset/img/team.png"),
             label = cfgLabel("modeCard2", "Team"),
             gradient = Brush.linearGradient(listOf(Color(0xFF8a7bd8), Color(0xFF5a4bc4))),
             modifier = Modifier.weight(1f).homeLayout("modeCard2")
-        ) { /* TODO: Team mode abhi implement nahi hui */ }
+        ) { tap("modeCard2") { /* Team mode abhi nahi — panel mein "Tap par kaam" se koi page/screen khol sakte ho */ } }
     }
 }
 
@@ -455,8 +475,8 @@ private fun ModeCard(
             .background(gradient)
             .clickable { SoundManager.playClick(); onClick() }
     ) {
-        AsyncImage(
-            model = imageUrl,
+        RemoteArt(
+            url = imageUrl,
             contentDescription = label,
             modifier = Modifier
                 .fillMaxWidth()
@@ -477,14 +497,10 @@ private fun ModeCard(
 }
 
 @Composable
-private fun BottomNav(navController: NavController, onOpenSettings: () -> Unit, onOpenGifts: () -> Unit) {
+private fun BottomNav(tap: (String, () -> Unit) -> Unit) {
     var active by remember { mutableStateOf("Events") }
-    val context = androidx.compose.ui.platform.LocalContext.current
     // Panel mein icon par "Tap par kaam" (jaise Page kholo) set ho to wohi chalta hai.
-    val go: (String) -> Unit = { key ->
-        val a = AppConfigStore.element(key).action
-        if (a.isNotBlank()) runConfigAction(a, navController, context, onOpenSettings, onOpenGifts)
-    }
+    val go: (String) -> Unit = { key -> tap(key) { } }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -510,7 +526,7 @@ private fun NavItem(iconUrl: String, label: String, active: Boolean = false, lay
                     modifier = Modifier.size(width = 78.dp, height = 57.dp)
                 )
             }
-            AsyncImage(model = iconUrl, contentDescription = label, modifier = Modifier.size(if (active) 56.dp else 46.dp))
+            RemoteArt(url = iconUrl, contentDescription = label, modifier = Modifier.size(if (active) 56.dp else 46.dp))
         }
         Text(label, color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
     }
