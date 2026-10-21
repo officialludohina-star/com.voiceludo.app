@@ -531,3 +531,7 @@ private fun NavItem(iconUrl: String, label: String, active: Boolean = false, lay
         Text(label, color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
     }
 }
+
+// Coins / diamonds ko hazaron ke comma ke sath dikhata hai (jaise 10000 -> "10,000").
+private fun formatAmount(n: Long): String =
+    java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(n)
