@@ -57,6 +57,10 @@ private fun cfgImg(key: String, default: String): String =
 private fun cfgLabel(key: String, default: String): String =
     AppConfigStore.element(key).label.ifBlank { default }
 
+// Panel ke "Font size" slider se naam ka size (0 = default).
+private fun cfgFont(key: String, default: Int): androidx.compose.ui.unit.TextUnit =
+    AppConfigStore.element(key).fontSize.let { if (it > 0) it else default }.sp
+
 // Kisi bhi icon/card par lagao — panel ke mutabiq offset, size, dikhna/chhupna
 // aur animation apply hota hai.
 @Composable
@@ -146,6 +150,14 @@ fun YallaHomeScreen(navController: NavController) {
         )
         // Admin panel (Screens > Home) ka background — panel mein na bana ho to upar ki default image chalti hai
         ConfigScreenBackground("home")
+        // Panel ke items / buttons jinko "Icons ke PEECHE" set kiya hai
+        ConfigScreenElements("home", navController, "back")
+        ConfigButtonsOverlay(
+            navController = navController,
+            onOpenSettings = { showSettingsDialog = true },
+            onOpenGifts = { showGifts = true },
+            layer = "back"
+        )
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -169,7 +181,7 @@ fun YallaHomeScreen(navController: NavController) {
             BottomNav(tap = tap)
         }
         // Admin panel (Screens > Home) ke extra icons / SVG / text / buttons
-        ConfigScreenElements("home", navController)
+        ConfigScreenElements("home", navController, "front")
         // Panel se banaye gaye naye buttons (position/size/animation/action sab server se)
         ConfigButtonsOverlay(
             navController = navController,
@@ -448,6 +460,7 @@ private fun ModeGrid(navController: NavController, tap: (String, () -> Unit) -> 
         ModeCard(
             imageUrl = cfgImg("modeCard1", "file:///android_asset/img/2-4-players.png"),
             label = cfgLabel("modeCard1", "2&4 Players"),
+            fontSp = cfgFont("modeCard1", 15),
             gradient = Brush.linearGradient(listOf(Color(0xFFf7b733), Color(0xFFc46b1a))),
             modifier = Modifier.weight(1f).homeLayout("modeCard1")
         ) { tap("modeCard1") { navController.navigate("ludo_mode_select") } }
@@ -455,6 +468,7 @@ private fun ModeGrid(navController: NavController, tap: (String, () -> Unit) -> 
         ModeCard(
             imageUrl = cfgImg("modeCard2", "file:///android_asset/img/team.png"),
             label = cfgLabel("modeCard2", "Team"),
+            fontSp = cfgFont("modeCard2", 15),
             gradient = Brush.linearGradient(listOf(Color(0xFF8a7bd8), Color(0xFF5a4bc4))),
             modifier = Modifier.weight(1f).homeLayout("modeCard2")
         ) { tap("modeCard2") { /* Team mode abhi nahi — panel mein "Tap par kaam" se koi page/screen khol sakte ho */ } }
@@ -465,6 +479,7 @@ private fun ModeGrid(navController: NavController, tap: (String, () -> Unit) -> 
 private fun ModeCard(
     imageUrl: String,
     label: String,
+    fontSp: androidx.compose.ui.unit.TextUnit = 15.sp,
     gradient: Brush,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -487,7 +502,7 @@ private fun ModeCard(
             label,
             color = Color.White,
             fontWeight = FontWeight.Black,
-            fontSize = 15.sp,
+            fontSize = fontSp,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
@@ -508,15 +523,15 @@ private fun BottomNav(tap: (String, () -> Unit) -> Unit) {
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        NavItem(cfgImg("navEvents", "file:///android_asset/img/Events.png"), cfgLabel("navEvents", "Events"), active == "Events", Modifier.homeLayout("navEvents")) { active = "Events"; go("navEvents") }
-        NavItem(cfgImg("navBattle", "file:///android_asset/img/Battle.png"), cfgLabel("navBattle", "Battle"), active == "Battle", Modifier.homeLayout("navBattle")) { active = "Battle"; go("navBattle") }
-        NavItem(cfgImg("navChat", "file:///android_asset/img/Chat.png"), cfgLabel("navChat", "Chat"), active == "Chat", Modifier.homeLayout("navChat")) { active = "Chat"; go("navChat") }
-        NavItem(cfgImg("navSocial", "file:///android_asset/img/Social.png"), cfgLabel("navSocial", "Social"), active == "Social", Modifier.homeLayout("navSocial")) { active = "Social"; go("navSocial") }
+        NavItem(cfgImg("navEvents", "file:///android_asset/img/Events.png"), cfgLabel("navEvents", "Events"), active == "Events", Modifier.homeLayout("navEvents"), cfgFont("navEvents", 12)) { active = "Events"; go("navEvents") }
+        NavItem(cfgImg("navBattle", "file:///android_asset/img/Battle.png"), cfgLabel("navBattle", "Battle"), active == "Battle", Modifier.homeLayout("navBattle"), cfgFont("navBattle", 12)) { active = "Battle"; go("navBattle") }
+        NavItem(cfgImg("navChat", "file:///android_asset/img/Chat.png"), cfgLabel("navChat", "Chat"), active == "Chat", Modifier.homeLayout("navChat"), cfgFont("navChat", 12)) { active = "Chat"; go("navChat") }
+        NavItem(cfgImg("navSocial", "file:///android_asset/img/Social.png"), cfgLabel("navSocial", "Social"), active == "Social", Modifier.homeLayout("navSocial"), cfgFont("navSocial", 12)) { active = "Social"; go("navSocial") }
     }
 }
 
 @Composable
-private fun NavItem(iconUrl: String, label: String, active: Boolean = false, layoutModifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+private fun NavItem(iconUrl: String, label: String, active: Boolean = false, layoutModifier: Modifier = Modifier, fontSp: androidx.compose.ui.unit.TextUnit = 12.sp, onClick: () -> Unit = {}) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = layoutModifier.clickable { SoundManager.playClick(); onClick() }) {
         Box(contentAlignment = Alignment.Center) {
             if (active) {
@@ -528,7 +543,7 @@ private fun NavItem(iconUrl: String, label: String, active: Boolean = false, lay
             }
             RemoteArt(url = iconUrl, contentDescription = label, modifier = Modifier.size(if (active) 56.dp else 46.dp))
         }
-        Text(label, color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+        Text(label, color = Color.White, fontWeight = FontWeight.Black, fontSize = fontSp)
     }
 }
 

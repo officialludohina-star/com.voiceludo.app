@@ -30,7 +30,8 @@ data class ElementCfg(
     val animation: String = "none",
     val label: String = "",
     val image: String = "",
-    val action: String = ""
+    val action: String = "",
+    val fontSize: Int = 0
 )
 
 data class GiftCfg(
@@ -53,7 +54,9 @@ data class ButtonCfg(
     val size: Int,
     val animation: String,
     val action: String,
-    val visible: Boolean
+    val visible: Boolean,
+    val layer: String = "front",
+    val fontSize: Int = 0
 )
 
 // Page / screen ka ek item (image, svg, text ya button). x/y screen ke percent
@@ -73,7 +76,8 @@ data class ScreenElCfg(
     val opacity: Int,
     val animation: String,
     val action: String,
-    val visible: Boolean
+    val visible: Boolean,
+    val layer: String = "front"
 )
 
 // Khaas ids: "matching" (game start screen), "result" (game over screen).
@@ -128,12 +132,17 @@ object AppConfigStore {
     @Volatile private var lastFetchMs = 0L
     @Volatile private var fetching = false
 
+    private var appCtx: Context? = null
+
     fun init(context: Context) {
         if (prefs != null) return
+        appCtx = context.applicationContext
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
         // Pehle last-saved config (offline start par bhi panel wali settings milen)
         p.getString(KEY_JSON, null)?.let { raw -> parse(raw)?.let { config = it } }
+        // App khulte hi sab images / GIF / SVG / SVGA background mein pehle se load
+        main.post { appCtx?.let { ConfigAssetCache.prefetch(it, config); ConfigAssetCache.prefetchBuiltIn(it) } }
         refresh(force = true)
     }
 
@@ -161,7 +170,10 @@ object AppConfigStore {
                     val body = if (r.isSuccessful) r.body?.string() else null
                     val parsed = body?.let { parse(it) } ?: return
                     prefs?.edit()?.putString(KEY_JSON, body)?.apply()
-                    main.post { if (parsed != config) config = parsed }
+                    main.post {
+                        if (parsed != config) config = parsed
+                        appCtx?.let { ConfigAssetCache.prefetch(it, parsed) }
+                    }
                 }
             }
         })
@@ -188,7 +200,8 @@ object AppConfigStore {
                     visible = e.optBoolean("visible", true),
                     x = e.optInt("x", 0),
                     y = e.optInt("y", 0),
-                    size = e.optInt("size", 100).coerceIn(10, 400),
+                    size = e.optInt("size", 100).coerceIn(1, 400),
+                    fontSize = e.optInt("fontSize", 0).coerceIn(0, 80),
                     animation = e.optString("animation", "none"),
                     label = e.optString("label", ""),
                     image = assetUrl(e.optString("image", "")),
@@ -225,12 +238,14 @@ object AppConfigStore {
                         id = b.optString("id"),
                         label = b.optString("label", ""),
                         image = assetUrl(b.optString("image", "")),
-                        x = b.optInt("x", 50).coerceIn(0, 100),
-                        y = b.optInt("y", 50).coerceIn(0, 100),
-                        size = b.optInt("size", 80).coerceIn(10, 300),
+                        x = b.optInt("x", 50).coerceIn(-50, 150),
+                        y = b.optInt("y", 50).coerceIn(-50, 150),
+                        size = b.optInt("size", 80).coerceIn(1, 300),
+                        fontSize = b.optInt("fontSize", 0).coerceIn(0, 80),
                         animation = b.optString("animation", "none"),
                         action = b.optString("action", ""),
-                        visible = b.optBoolean("visible", true)
+                        visible = b.optBoolean("visible", true),
+                        layer = if (b.optString("layer") == "back") "back" else "front"
                     )
                 )
             }
@@ -260,7 +275,8 @@ object AppConfigStore {
                                 opacity = e.optInt("opacity", 100).coerceIn(0, 100),
                                 animation = e.optString("animation", "none"),
                                 action = e.optString("action", ""),
-                                visible = e.optBoolean("visible", true)
+                                visible = e.optBoolean("visible", true),
+                                layer = if (e.optString("layer") == "back") "back" else "front"
                             )
                         )
                     }

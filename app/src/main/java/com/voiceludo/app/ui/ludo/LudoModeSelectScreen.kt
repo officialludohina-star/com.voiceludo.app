@@ -21,11 +21,29 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.voiceludo.app.net.AppConfigStore
+import com.voiceludo.app.ui.common.RemoteArt
+import com.voiceludo.app.ui.common.cfgElement
 import com.voiceludo.app.audio.SoundManager
 
 // Asal "#ludoModeScreen" ka hoobahoo design — tabs (1 ON 1 / 4 Players), Select Mode
 // card (Classic/Arrow/Quick/Master), Select Amount card (bet +/-, total pool), Magic
 // toggle, aur Start button. Rangeen gradients/icons HTML se seedhe copy kiye gaye hain.
+// Panel ke Screens > Battle (2 Player / 4 Player) ke icons ke keys: m2Close, m4Close, m2Start ...
+// 4 Player screen par agar uske icon ko panel mein chheda nahi (default) to 2 Player wali setting chalti hai.
+private fun msKey(players: Int, name: String): String {
+    if (players == 4) {
+        val e = AppConfigStore.element("m4$name")
+        val untouched = e.visible && e.x == 0 && e.y == 0 && e.size == 100 &&
+            e.animation == "none" && e.image.isBlank()
+        if (!untouched) return "m4$name"
+    }
+    return "m2$name"
+}
+
+private fun msVisible(key: String): Boolean = AppConfigStore.element(key).visible
+private fun msImage(key: String): String = AppConfigStore.element(key).image
+
 @Composable
 fun LudoModeSelectScreen(navController: NavController) {
     var mode by remember { mutableStateOf(LudoMode.CLASSIC) }
@@ -38,6 +56,14 @@ fun LudoModeSelectScreen(navController: NavController) {
     val safeBetIndex = betIndex.coerceIn(0, betList.lastIndex)
     val bet = betList[safeBetIndex]
     val totalPool = bet * players
+    val k: (String) -> String = { name -> msKey(players, name) }
+    // 4 Player ki apni screen (wallpaper / items) panel mein bani ho to wohi, warna 2 Player wali
+    val msId = run {
+        val sc4 = AppConfigStore.screen("modeSelect4")
+        if (players == 4 && sc4 != null &&
+            (sc4.bgImage.isNotBlank() || sc4.bgColor.isNotBlank() || sc4.elements.isNotEmpty())
+        ) "modeSelect4" else "modeSelect"
+    }
 
     // Safety: agar kisi wajah se lobby music abhi tak baj rahi ho (jaise
     // "wapis" aakar isi screen par dobara pohanchna), yahan hamesha rok di
@@ -53,7 +79,7 @@ fun LudoModeSelectScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize()
         )
         // Admin panel (Screens > Mode select) ka background
-        com.voiceludo.app.ui.common.ConfigScreenBackground("modeSelect")
+        com.voiceludo.app.ui.common.ConfigScreenBackground(msId)
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -64,12 +90,14 @@ fun LudoModeSelectScreen(navController: NavController) {
             // TABS: 1 ON 1 / 4 Players
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ModeTab(
-                    iconUrl = MODE_2P_ICON, label = "1 ON 1",
-                    active = players == 2, onClick = { players = 2 }
+                    iconUrl = msImage(k("Tab2")).ifBlank { MODE_2P_ICON }, label = "1 ON 1",
+                    active = players == 2, onClick = { players = 2 },
+                    modifier = Modifier.cfgElement(k("Tab2")), enabled = msVisible(k("Tab2"))
                 )
                 ModeTab(
-                    iconUrl = MODE_4P_ICON, label = "4 Players",
-                    active = players == 4, onClick = { players = 4 }
+                    iconUrl = msImage(k("Tab4")).ifBlank { MODE_4P_ICON }, label = "4 Players",
+                    active = players == 4, onClick = { players = 4 },
+                    modifier = Modifier.cfgElement(k("Tab4")), enabled = msVisible(k("Tab4"))
                 )
             }
 
@@ -111,10 +139,10 @@ fun LudoModeSelectScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    AsyncImage(
-                        model = if (safeBetIndex <= 0) BET_MINUS_ICON_DISABLED else BET_MINUS_ICON,
+                    RemoteArt(
+                        url = msImage(k("Minus")).ifBlank { if (safeBetIndex <= 0) BET_MINUS_ICON_DISABLED else BET_MINUS_ICON },
                         contentDescription = "kam karo",
-                        modifier = Modifier.size(40.dp).clickable {
+                        modifier = Modifier.cfgElement(k("Minus")).size(40.dp).clickable(enabled = msVisible(k("Minus"))) {
                             SoundManager.playClick()
                             if (safeBetIndex > 0) betIndex = safeBetIndex - 1
                         }
@@ -132,10 +160,10 @@ fun LudoModeSelectScreen(navController: NavController) {
                         Text(bet.toString(), color = Color(0xFFffe066), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                     }
                     Spacer(Modifier.width(16.dp))
-                    AsyncImage(
-                        model = if (safeBetIndex >= betList.lastIndex) BET_PLUS_ICON_DISABLED else BET_PLUS_ICON,
+                    RemoteArt(
+                        url = msImage(k("Plus")).ifBlank { if (safeBetIndex >= betList.lastIndex) BET_PLUS_ICON_DISABLED else BET_PLUS_ICON },
                         contentDescription = "zyada karo",
-                        modifier = Modifier.size(40.dp).clickable {
+                        modifier = Modifier.cfgElement(k("Plus")).size(40.dp).clickable(enabled = msVisible(k("Plus"))) {
                             SoundManager.playClick()
                             if (safeBetIndex < betList.lastIndex) betIndex = safeBetIndex + 1
                         }
@@ -193,16 +221,17 @@ fun LudoModeSelectScreen(navController: NavController) {
             // aspectRatio image ke asal ratio (2172x724) ke mutabiq rakha hai taake
             // pill squished/stretched na dikhe, aur upar wala gap barha ke thora
             // neechay kiya hai.
-            AsyncImage(
-                model = START_BUTTON_IMG,
+            RemoteArt(
+                url = msImage(k("Start")).ifBlank { START_BUTTON_IMG },
                 contentDescription = "Start",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
+                    .cfgElement(k("Start"))
                     .padding(horizontal = 24.dp)
                     .widthIn(max = 260.dp)
                     .fillMaxWidth()
                     .aspectRatio(2172f / 724f)
-                    .clickable {
+                    .clickable(enabled = msVisible(k("Start"))) {
                         SoundManager.playClick()
                         navController.navigate("ludo_matching/${mode.name}/$players/$magicOn/$safeBetIndex")
                     }
@@ -212,22 +241,36 @@ fun LudoModeSelectScreen(navController: NavController) {
         }
 
         // Admin panel (Screens > Mode select) ke extra icons / SVG / text / buttons
-        com.voiceludo.app.ui.common.ConfigScreenElements("modeSelect", navController)
+        com.voiceludo.app.ui.common.ConfigScreenElements(msId, navController)
 
         // CLOSE BUTTON
+        // Panel mein "Dikhao" band ho to X na dikhta hai na tap hota hai; image lagao to wohi dikhti hai.
+        val closeKey = k("Close")
+        val closeImg = msImage(closeKey)
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 14.dp, end = 12.dp)
+                .cfgElement(closeKey)
                 .size(width = 44.dp, height = 36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
-                .clickable {
+                .then(
+                    if (closeImg.isBlank()) Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
+                    else Modifier
+                )
+                .clickable(enabled = msVisible(closeKey)) {
                     SoundManager.playClick()
                     navController.popBackStack()
                 },
             contentAlignment = Alignment.Center
-        ) { Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp) }
+        ) {
+            if (closeImg.isNotBlank()) {
+                RemoteArt(closeImg, Modifier.fillMaxSize(), ContentScale.Fit)
+            } else {
+                Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+            }
+        }
     }
 
     if (showHelp) {
@@ -372,21 +415,24 @@ private fun RuleSection(title: String, body: String) {
 }
 
 @Composable
-private fun ModeTab(iconUrl: String, label: String, active: Boolean, onClick: () -> Unit) {
+private fun ModeTab(
+    iconUrl: String, label: String, active: Boolean, onClick: () -> Unit,
+    modifier: Modifier = Modifier, enabled: Boolean = true
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .width(142.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
                 if (active) Brush.verticalGradient(listOf(Color(0xFF3ad4ff), Color(0xFF1a7aff)))
                 else Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Black.copy(alpha = 0.35f)))
             )
-            .clickable { SoundManager.playClick(); onClick() }
+            .clickable(enabled = enabled) { SoundManager.playClick(); onClick() }
             .padding(vertical = 10.dp, horizontal = 6.dp)
     ) {
-        AsyncImage(
-            model = iconUrl, contentDescription = label,
+        RemoteArt(
+            url = iconUrl, contentDescription = label,
             modifier = Modifier
                 .padding(top = 18.dp) // icon ko thora aur nichy karne ke liye (user ne mangi thi)
                 .fillMaxWidth()

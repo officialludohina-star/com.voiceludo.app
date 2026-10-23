@@ -53,6 +53,31 @@ object ConfigAssetCache {
         return s
     }
 
+    // App ke andar likhe huay (hardcoded) bahari image links — Profile / Home / Mode screens.
+    private val BUILTIN_URLS = listOf(
+        "https://i.postimg.cc/65CVg5SN/male.webp",
+        "https://i.postimg.cc/PrbZKVL7/IMG-20260831-WA0011.jpg",
+        "https://i.postimg.cc/SKgfdTvw/female.webp",
+        "https://i.postimg.cc/T335q8LT/horse-chat.webp",
+        "https://i.postimg.cc/T3C5ckRd/file-000000000da882088a81c4962bde4afa.png",
+        "https://i.postimg.cc/W4MZk05H/file-00000000076882088e096a6ce8072b70.png",
+        "https://i.postimg.cc/hGXpXvTZ/IMG-20260902-WA0005.jpg",
+        "https://i.postimg.cc/kggkYCRb/IMG-20260902-WA0005.jpg",
+        "https://i.postimg.cc/qMtCGcNh/bg-associate-watch-vs.webp",
+        "https://i.postimg.cc/vZTDxWkg/img8-static.png",
+        "https://i.postimg.cc/zfFtpYyw/match.gif"
+    )
+
+    fun prefetchBuiltIn(ctx: Context) {
+        val app = ctx.applicationContext
+        for (url in BUILTIN_URLS) {
+            if (!started.add(url)) continue
+            runCatching {
+                Coil.imageLoader(app).enqueue(ImageRequest.Builder(app).data(url).build())
+            }.onFailure { started.remove(url) }
+        }
+    }
+
     // Main thread se bulao.
     fun prefetch(ctx: Context, cfg: AppConfig) {
         val app = ctx.applicationContext

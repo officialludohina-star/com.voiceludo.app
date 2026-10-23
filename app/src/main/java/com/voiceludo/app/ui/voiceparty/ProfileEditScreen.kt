@@ -36,7 +36,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.voiceludo.app.audio.SoundManager
+import com.voiceludo.app.net.AppConfigStore
 import com.voiceludo.app.net.BackendClient
+import com.voiceludo.app.ui.common.ConfigScreenElements
+import com.voiceludo.app.ui.common.RemoteArt
+import com.voiceludo.app.ui.common.cfgElement
+import com.voiceludo.app.ui.common.parseConfigColor
 import java.io.File
 
 // ============================================================================
@@ -179,12 +184,23 @@ fun ProfileEditScreen(navController: NavController) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Poora background — green gradient + glow/sparkles (user ka diya link)
-        AsyncImage(
-            model = SCREEN_BACKGROUND_IMAGE,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        // Panel (Screens > Profile edit) ka background: rang / image / GIF / SVG. Na bana ho to yehi default.
+        val profCfg = AppConfigStore.screen("profile")
+        if (profCfg != null && profCfg.bgColor.isNotBlank()) {
+            Box(Modifier.fillMaxSize().background(parseConfigColor(profCfg.bgColor, Color(0xFF06170f))))
+        }
+        if (profCfg != null && profCfg.bgImage.isNotBlank()) {
+            RemoteArt(profCfg.bgImage, Modifier.fillMaxSize(), ContentScale.Crop)
+        } else {
+            AsyncImage(
+                model = SCREEN_BACKGROUND_IMAGE,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        // Panel ke items jo "Icons ke PEECHE" set hain
+        ConfigScreenElements("profile", navController, "back")
 
         Column(
             modifier = Modifier
@@ -217,14 +233,16 @@ fun ProfileEditScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth().height(150.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val customAvatar = AppConfigStore.element("profAvatar").image
                 val avatarModel = when {
-                    profile.avatarUri.isEmpty() -> DEFAULT_AVATAR
+                    profile.avatarUri.isEmpty() -> customAvatar.ifBlank { DEFAULT_AVATAR }
                     profile.avatarUri.startsWith("http") -> profile.avatarUri
                     else -> File(profile.avatarUri)
                 }
 
                 Box(
                     modifier = Modifier
+                        .cfgElement("profAvatar")
                         .size(100.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF0d2818))
@@ -236,20 +254,25 @@ fun ProfileEditScreen(navController: NavController) {
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = avatarModel,
-                        contentDescription = "avatar",
-                        modifier = Modifier
-                            .size(if (profile.avatarUri.isEmpty()) 64.dp else 100.dp)
-                            .clip(CircleShape),
-                        contentScale = if (profile.avatarUri.isEmpty()) ContentScale.Fit else ContentScale.Crop
-                    )
+                    if (profile.avatarUri.isEmpty() && customAvatar.isNotBlank()) {
+                        RemoteArt(customAvatar, Modifier.size(100.dp).clip(CircleShape), ContentScale.Crop)
+                    } else {
+                        AsyncImage(
+                            model = avatarModel,
+                            contentDescription = "avatar",
+                            modifier = Modifier
+                                .size(if (profile.avatarUri.isEmpty()) 64.dp else 100.dp)
+                                .clip(CircleShape),
+                            contentScale = if (profile.avatarUri.isEmpty()) ContentScale.Fit else ContentScale.Crop
+                        )
+                    }
                 }
 
                 // Pencil-badge, avatar ke neeche-right corner par
                 Box(
                     modifier = Modifier
                         .offset(x = 36.dp, y = 36.dp)
+                        .cfgElement("profBadge")
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF0d2818))
@@ -262,11 +285,16 @@ fun ProfileEditScreen(navController: NavController) {
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = UPLOAD_PHOTO_ICON,
-                        contentDescription = "edit avatar",
-                        modifier = Modifier.size(16.dp)
-                    )
+                    val badgeImg = AppConfigStore.element("profBadge").image
+                    if (badgeImg.isNotBlank()) {
+                        RemoteArt(badgeImg, Modifier.fillMaxSize(), ContentScale.Crop)
+                    } else {
+                        AsyncImage(
+                            model = UPLOAD_PHOTO_ICON,
+                            contentDescription = "edit avatar",
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
@@ -294,6 +322,7 @@ fun ProfileEditScreen(navController: NavController) {
             if (gameId > 0) {
                 Row(
                     modifier = Modifier
+                        .cfgElement("profId")
                         .fillMaxWidth()
                         .clickable {
                             SoundManager.playClick()
@@ -323,16 +352,22 @@ fun ProfileEditScreen(navController: NavController) {
 
             // ---- Light/mint card — reference image ke blank-panel jaisa —
             // Username/Gender/Country/Bio sab isi ke andar, light theme mein. ----
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(CardBg)
-                    .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
-                    .padding(18.dp)
-            ) {
+            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth()) {
+                // Mint card ka peeche wala panel — alag element (panel mein hilta / badalta hai)
+                val cardImg = AppConfigStore.element("profCard").image
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .cfgElement("profCard")
+                        .clip(RoundedCornerShape(20.dp))
+                        .then(if (cardImg.isBlank()) Modifier.background(CardBg) else Modifier)
+                        .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+                ) {
+                    if (cardImg.isNotBlank()) RemoteArt(cardImg, Modifier.fillMaxSize(), ContentScale.FillBounds)
+                }
+                Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
                 // ---- Username ----
+                Column(Modifier.cfgElement("profUsername")) {
                 CardFieldLabel("Username (0/3 times per day)")
                 CardFieldBox(onClick = { showNameDialog = true }) {
                     Text(
@@ -343,10 +378,12 @@ fun ProfileEditScreen(navController: NavController) {
                         modifier = Modifier.weight(1f)
                     )
                 }
+                }
 
                 Spacer(Modifier.height(16.dp))
 
                 // ---- Gender ----
+                Column(Modifier.cfgElement("profGender")) {
                 CardFieldLabel("Gender")
                 CardFieldBox(onClick = { showGenderDialog = true }) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -360,10 +397,12 @@ fun ProfileEditScreen(navController: NavController) {
                         )
                     }
                 }
+                }
 
                 Spacer(Modifier.height(16.dp))
 
                 // ---- Country ----
+                Column(Modifier.cfgElement("profCountry")) {
                 CardFieldLabel("Country")
                 CardFieldBox(onClick = { showFlagDialog = true }) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -372,10 +411,12 @@ fun ProfileEditScreen(navController: NavController) {
                         Text(profile.flagName, color = CardValueColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 }
+                }
 
                 Spacer(Modifier.height(16.dp))
 
                 // ---- Bio ----
+                Column(Modifier.cfgElement("profBio")) {
                 CardFieldLabel("Bio")
                 CardFieldBox(onClick = { showBioDialog = true }, minHeight = 120.dp, alignTop = true) {
                     Text(
@@ -387,10 +428,14 @@ fun ProfileEditScreen(navController: NavController) {
                         modifier = Modifier.weight(1f)
                     )
                 }
+                }
+                }
             }
 
             Spacer(Modifier.height(28.dp))
         }
+        // Panel ke items jo "Icons ke AAGE" set hain
+        ConfigScreenElements("profile", navController, "front")
     }
 
 

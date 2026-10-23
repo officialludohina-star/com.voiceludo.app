@@ -44,6 +44,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.voiceludo.app.net.AppConfigStore
 import com.voiceludo.app.net.ButtonCfg
+import com.voiceludo.app.net.ConfigAssetCache
 import com.voiceludo.app.net.HTTP_BASE
 import com.voiceludo.app.net.ScreenElCfg
 
@@ -163,11 +164,16 @@ private fun SvgaArt(url: String, modifier: Modifier, cover: Boolean) {
                     isClickable = false
                     isFocusable = false
                     val self = this
-                    runCatching {
+                    val cachedEntity = ConfigAssetCache.svgaEntity(url)
+                    if (cachedEntity != null) {
+                        self.setVideoItem(cachedEntity)
+                        self.startAnimation()
+                    } else runCatching {
                         com.opensource.svgaplayer.SVGAParser(ctx).decodeFromURL(
                             java.net.URL(url),
                             object : com.opensource.svgaplayer.SVGAParser.ParseCompletion {
                                 override fun onComplete(videoItem: com.opensource.svgaplayer.SVGAVideoEntity) {
+                                    ConfigAssetCache.putSvga(url, videoItem)
                                     self.setVideoItem(videoItem)
                                     self.startAnimation()
                                 }
@@ -184,6 +190,8 @@ private fun SvgaArt(url: String, modifier: Modifier, cover: Boolean) {
 
 @Composable
 private fun SvgWebArt(url: String, modifier: Modifier, cover: Boolean) {
+    // Pehle se download hui SVG (data URI) mil jaye to foran dikhti hai
+    val srcUrl = ConfigAssetCache.svgDataUri(url) ?: url
     val holder = remember { arrayOfNulls<WebView>(1) }
     DisposableEffect(Unit) {
         onDispose {
@@ -191,7 +199,7 @@ private fun SvgWebArt(url: String, modifier: Modifier, cover: Boolean) {
             holder[0] = null
         }
     }
-    key(url) {
+    key(srcUrl) {
         AndroidView(
             modifier = modifier,
             factory = { ctx ->
@@ -209,7 +217,7 @@ private fun SvgWebArt(url: String, modifier: Modifier, cover: Boolean) {
                     loadDataWithBaseURL(
                         "$HTTP_BASE/",
                         "<html><body style=\"margin:0;background:transparent;overflow:hidden\">" +
-                            "<img src=\"$url\" style=\"width:100vw;height:100vh;object-fit:$fit\"></body></html>",
+                            "<img src=\"$srcUrl\" style=\"width:100vw;height:100vh;object-fit:$fit\"></body></html>",
                         "text/html",
                         "utf-8",
                         null
@@ -275,12 +283,12 @@ fun ConfigScreenBackground(screenId: String) {
 // Page ke items: X/Y screen ke percent (item ka center), W/H dp, rotation, opacity,
 // animation aur tap-action — sab panel ke preview jaisa.
 @Composable
-fun ConfigScreenElements(screenId: String, navController: NavController) {
+fun ConfigScreenElements(screenId: String, navController: NavController, layer: String? = null) {
     val sc = AppConfigStore.screen(screenId) ?: return
     val context = LocalContext.current
     var showGifts by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        sc.elements.filter { it.visible }.forEach { e ->
+        sc.elements.filter { it.visible && (layer == null || it.layer == layer) }.forEach { e ->
             key(e.id) {
                 val w = e.w.dp
                 val h = e.h.dp
@@ -377,9 +385,10 @@ fun ConfigPageScreen(navController: NavController, pageId: String) {
 fun ConfigButtonsOverlay(
     navController: NavController,
     onOpenSettings: () -> Unit,
-    onOpenGifts: () -> Unit
+    onOpenGifts: () -> Unit,
+    layer: String = "front"
 ) {
-    val buttons: List<ButtonCfg> = AppConfigStore.config.buttons.filter { it.visible }
+    val buttons: List<ButtonCfg> = AppConfigStore.config.buttons.filter { it.visible && it.layer == layer }
     if (buttons.isEmpty()) return
     val context = LocalContext.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -393,7 +402,6 @@ fun ConfigButtonsOverlay(
                     )
                     .size(size)
                     .cfgAnimation(b.animation)
-                    .clip(RoundedCornerShape(12.dp))
                     .clickable {
                         runConfigAction(b.action, navController, context, onOpenSettings, onOpenGifts)
                     },
@@ -406,7 +414,7 @@ fun ConfigButtonsOverlay(
                         b.label,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
+                        fontSize = (if (b.fontSize > 0) b.fontSize else 12).sp,
                         textAlign = TextAlign.Center
                     )
                 }
