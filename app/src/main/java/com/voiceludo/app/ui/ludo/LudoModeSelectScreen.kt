@@ -34,7 +34,9 @@ fun LudoModeSelectScreen(navController: NavController) {
     var magicOn by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
 
-    val bet = BET_OPTIONS[betIndex]
+    val betList = betOptions(players)
+    val safeBetIndex = betIndex.coerceIn(0, betList.lastIndex)
+    val bet = betList[safeBetIndex]
     val totalPool = bet * players
 
     // Safety: agar kisi wajah se lobby music abhi tak baj rahi ho (jaise
@@ -110,11 +112,11 @@ fun LudoModeSelectScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     AsyncImage(
-                        model = if (betIndex <= 0) BET_MINUS_ICON_DISABLED else BET_MINUS_ICON,
+                        model = if (safeBetIndex <= 0) BET_MINUS_ICON_DISABLED else BET_MINUS_ICON,
                         contentDescription = "kam karo",
                         modifier = Modifier.size(40.dp).clickable {
                             SoundManager.playClick()
-                            if (betIndex > 0) betIndex--
+                            if (safeBetIndex > 0) betIndex = safeBetIndex - 1
                         }
                     )
                     Spacer(Modifier.width(16.dp))
@@ -131,11 +133,11 @@ fun LudoModeSelectScreen(navController: NavController) {
                     }
                     Spacer(Modifier.width(16.dp))
                     AsyncImage(
-                        model = if (betIndex >= BET_OPTIONS.lastIndex) BET_PLUS_ICON_DISABLED else BET_PLUS_ICON,
+                        model = if (safeBetIndex >= betList.lastIndex) BET_PLUS_ICON_DISABLED else BET_PLUS_ICON,
                         contentDescription = "zyada karo",
                         modifier = Modifier.size(40.dp).clickable {
                             SoundManager.playClick()
-                            if (betIndex < BET_OPTIONS.lastIndex) betIndex++
+                            if (safeBetIndex < betList.lastIndex) betIndex = safeBetIndex + 1
                         }
                     )
                 }
@@ -202,7 +204,7 @@ fun LudoModeSelectScreen(navController: NavController) {
                     .aspectRatio(2172f / 724f)
                     .clickable {
                         SoundManager.playClick()
-                        navController.navigate("ludo_matching/${mode.name}/$players/$magicOn/$betIndex")
+                        navController.navigate("ludo_matching/${mode.name}/$players/$magicOn/$safeBetIndex")
                     }
             )
 

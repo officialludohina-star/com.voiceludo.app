@@ -95,6 +95,22 @@ fun Modifier.cfgAnimation(kind: String): Modifier {
     }
 }
 
+// Admin panel ke kisi bhi "element" par lagao (game board ke profile / dice / upar ke icons):
+// panel ke mutabiq offset (dp), size %, dikhna/chhupna aur animation. Default (0, 0, 100) par
+// kuch nahi badalta, yani panel mein kuch na chhedo to game bilkul pehle jaisa rehta hai.
+@Composable
+fun Modifier.cfgElement(key: String): Modifier {
+    val e = AppConfigStore.element(key)
+    return this
+        .offset(x = e.x.dp, y = e.y.dp)
+        .graphicsLayer(
+            scaleX = e.size / 100f,
+            scaleY = e.size / 100f,
+            alpha = if (e.visible) 1f else 0f
+        )
+        .cfgAnimation(e.animation)
+}
+
 fun parseConfigColor(hex: String, fallback: Color): Color =
     runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(fallback)
 

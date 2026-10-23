@@ -44,7 +44,8 @@ fun LudoMatchingScreen(
     magic: Boolean,
     betIndex: Int
 ) {
-    val bet = BET_OPTIONS.getOrElse(betIndex) { BET_OPTIONS.first() }
+    val betList = betOptions(players)
+    val bet = betList.getOrElse(betIndex) { betList.first() }
     val totalPool = bet * players
     // Match mil jaane par turant navigate nahi karte — pehle 2 second ke liye
     // sabke asal naam/DP dikhate hain (neeche slots mein), phir game screen

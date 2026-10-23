@@ -37,7 +37,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.voiceludo.app.net.AppConfigStore
 import com.voiceludo.app.ui.common.ConfigScreenBackground
+import com.voiceludo.app.ui.common.cfgElement
 import com.voiceludo.app.ui.common.ConfigScreenElements
 import coil.compose.AsyncImage
 import com.voiceludo.app.audio.SoundManager
@@ -56,6 +58,8 @@ private enum class CornerPos { POS_TL, POS_TR, POS_BL, POS_BR }
 @Composable
 fun LudoGameScreen(navController: NavController, mode: String, players: Int, magic: Boolean = false, betIndex: Int = 0) {
     val ludoMode = LudoMode.valueOf(mode)
+    // Admin panel (Screens > Game board) ke elements ka prefix: "g2" (2 Player) ya "g4" (4 Player)
+    val gp = "g$players"
 
     // Asal match-info (mera color, real room, initial server state) — Matching
     // screen ne yeh BackendClient mein rakha tha jab "matched" message aaya tha.
@@ -202,7 +206,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
         val xOffset = screenW * (spec.baseX / 100f) + spec.translateX.dp
         val yOffset = screenH * (spec.baseY / 100f) + spec.translateY.dp
         val absoluteX = if (spec.alignEnd) screenW - xOffset else xOffset
-        return absoluteX to yOffset
+        val pe = AppConfigStore.element(gp + "Prof" + when (pos) {
+            CornerPos.POS_BL -> "BL"; CornerPos.POS_TL -> "TL"; CornerPos.POS_TR -> "TR"; CornerPos.POS_BR -> "BR"
+        })
+        return (absoluteX + pe.x.dp) to (yOffset + pe.y.dp)
     }
 
     // #ludoGameScreen: position:fixed; inset:0; background game-bg.webp cover
@@ -218,8 +225,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
             modifier = Modifier.fillMaxSize()
         )
         // Admin panel (Screens > Game board) ka background aur decor — board ke PEECHE rehta hai
-        ConfigScreenBackground("game")
-        ConfigScreenElements("game", navController)
+        // 4 Player ka alag wallpaper panel mein na bana ho to 2 Player wali game screen hi chalti hai
+        val gameScreenId = if (players == 4 && AppConfigStore.screen("game4") != null) "game4" else "game"
+        ConfigScreenBackground(gameScreenId)
+        ConfigScreenElements(gameScreenId, navController)
 
         // .game-board-wrap: position:absolute; top:50%; left:50%; translate(-50%,-50%);
         // width:100vw; height:auto (square board image)
@@ -281,10 +290,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 .height(44.dp)
         ) {
             AsyncImage(
-                model = TOP_BAR_BG_IMG,
+                model = AppConfigStore.element(gp + "TopBar").image.ifBlank { TOP_BAR_BG_IMG },
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 0.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 0.dp))
+                modifier = Modifier.fillMaxSize().cfgElement(gp + "TopBar").clip(RoundedCornerShape(topStart = 0.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 0.dp))
             )
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp),
@@ -292,12 +301,14 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
-                    model = SETTINGS_ICON, contentDescription = "settings",
-                    modifier = Modifier.size(40.dp).clickable { SoundManager.playClick(); showSettings = !showSettings }
+                    model = AppConfigStore.element(gp + "TopSettings").image.ifBlank { SETTINGS_ICON }, contentDescription = "settings",
+                    modifier = Modifier.size(40.dp).cfgElement(gp + "TopSettings")
+                        .clickable(enabled = AppConfigStore.element(gp + "TopSettings").visible) { SoundManager.playClick(); showSettings = !showSettings }
                 )
                 AsyncImage(
-                    model = BET_INFO_ICON, contentDescription = "bet info",
-                    modifier = Modifier.size(44.dp).clickable { SoundManager.playClick(); showBetInfo = true }
+                    model = AppConfigStore.element(gp + "TopBet").image.ifBlank { BET_INFO_ICON }, contentDescription = "bet info",
+                    modifier = Modifier.size(44.dp).cfgElement(gp + "TopBet")
+                        .clickable(enabled = AppConfigStore.element(gp + "TopBet").visible) { SoundManager.playClick(); showBetInfo = true }
                 )
             }
         }
@@ -382,6 +393,9 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
 
             val xOffset = screenW * (spec.baseX / 100f) + spec.translateX.dp
             val yOffset = screenH * (spec.baseY / 100f) + spec.translateY.dp
+            val cornerKey = when (pos) {
+                CornerPos.POS_BL -> "BL"; CornerPos.POS_TL -> "TL"; CornerPos.POS_TR -> "TR"; CornerPos.POS_BR -> "BR"
+            }
             val cornerAlign = if (spec.alignEnd) Alignment.TopEnd else Alignment.TopStart
             val xForOffset = if (spec.alignEnd) -xOffset else xOffset
 
@@ -392,7 +406,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val profile = @Composable {
+                val profileInner = @Composable {
                     PlayerProfileBox(
                         name = name,
                         avatarUrl = avatarUrl,
@@ -407,7 +421,11 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                         hasGoldenDice = color in state.goldenDiceHolders
                     )
                 }
-                val dice = @Composable {
+                // Panel (Screens > Game board) se profile / dice ki jagah, size, animation
+                val profile = @Composable {
+                    Box(Modifier.cfgElement(gp + "Prof" + cornerKey)) { profileInner() }
+                }
+                val diceInner = @Composable {
                     // Sirf jis player ki abhi bari hai uska hi dice-box dikhta hai —
                     // baaki sab players ka dice box gayab rehta hai jab tak unki apni
                     // bari na aa jaye (tab woh khud-b-khud reveal ho jata hai). Isi
@@ -496,6 +514,9 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                             }
                         }
                     }
+                }
+                val dice = @Composable {
+                    Box(Modifier.cfgElement(gp + "Dice" + cornerKey)) { diceInner() }
                 }
                 // Player 3 (pos-tr) aur Player 4 (pos-br) ke liye dice pehle, profile baad me
                 if (pos == CornerPos.POS_TR || pos == CornerPos.POS_BR) {

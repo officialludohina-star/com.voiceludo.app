@@ -152,6 +152,15 @@ const val GOLDEN_DICE_ICON = "file:///android_asset/img/icon-golden-dice.webp"
 
 val BET_OPTIONS = listOf(500, 2000, 10000, 20000, 50000, 100000, 250000, 500000, 1000000, 5000000, 10000000, 20000000)
 
+// Admin panel (Bets tab) ki values: settings "bets_2" (2 Player) / "bets_4" (4 Player), ya purani "bets".
+// Panel mein kuch set na ho to upar wali purani list hi chalti hai.
+fun betOptions(players: Int): List<Int> {
+    val store = com.voiceludo.app.net.AppConfigStore
+    val raw = store.setting("bets_$players", store.setting("bets", ""))
+    val parsed = raw.split(",").mapNotNull { it.trim().toIntOrNull() }.filter { it > 0 }.distinct().sorted()
+    return if (parsed.isEmpty()) BET_OPTIONS else parsed
+}
+
 // Top bar + settings panel ke icons (asal HTML se hoobahoo)
 const val SETTINGS_ICON = "file:///android_asset/img/system.webp"
 const val BET_INFO_ICON = "file:///android_asset/img/file-000000000d188208a6a8a0921cdc4517.png"
