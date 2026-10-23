@@ -80,6 +80,7 @@ fun LudoModeSelectScreen(navController: NavController) {
         )
         // Admin panel (Screens > Mode select) ka background
         com.voiceludo.app.ui.common.ConfigScreenBackground(msId)
+        com.voiceludo.app.ui.common.ConfigScreenElements(msId, navController, "back")
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -241,7 +242,7 @@ fun LudoModeSelectScreen(navController: NavController) {
         }
 
         // Admin panel (Screens > Mode select) ke extra icons / SVG / text / buttons
-        com.voiceludo.app.ui.common.ConfigScreenElements(msId, navController)
+        com.voiceludo.app.ui.common.ConfigScreenElements(msId, navController, "front")
 
         // CLOSE BUTTON
         // Panel mein "Dikhao" band ho to X na dikhta hai na tap hota hai; image lagao to wohi dikhti hai.

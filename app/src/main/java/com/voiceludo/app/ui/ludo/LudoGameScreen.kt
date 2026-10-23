@@ -274,7 +274,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
         // 4 Player ka alag wallpaper panel mein na bana ho to 2 Player wali game screen hi chalti hai
         val gameScreenId = if (players == 4 && AppConfigStore.screen("game4") != null) "game4" else "game"
         ConfigScreenBackground(gameScreenId)
-        ConfigScreenElements(gameScreenId, navController)
+        ConfigScreenElements(gameScreenId, navController, "back")
 
         // .game-board-wrap: position:absolute; top:50%; left:50%; translate(-50%,-50%);
         // width:100vw; height:auto (square board image)
@@ -610,6 +610,9 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
             }
         }
 
+        // Panel ke "Icons ke AAGE" wale items — board aur players ke upar
+        ConfigScreenElements(gameScreenId, navController, "front")
+
         // Neeche wala status/hint bar hata diya gaya hai (user ki request par) — ab board
         // par "Apki baari hai — dice roll karein" jaisa koi message nahi dikhta. Turn ka
         // pata ab sirf active player ke dice-box ke oopar wale green arrow (neeche) aur
@@ -840,68 +843,6 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 TextButton(onClick = { sendIt() }) {
                     Text("Send", color = Color(0xFFFFB84D), fontWeight = FontWeight.Black)
                 }
-            }
-        }
-
-        // ==== TEMP: Rocket flight tuning panel ====
-        // User rocket ki udaan (duration/lift/pre-gap) khud live adjust kar ke
-        // dekhna chahte hain, phir final numbers bata denge jo hum seedha
-        // RocketTuning.kt ke defaults mein lock kar denge (aur yeh panel hata
-        // denge) — bilkul pehle wale block-icon tuner jaisa.
-        var showRocketTuner by remember { mutableStateOf(false) }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 90.dp, start = 4.dp)
-                .size(30.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xCC000000))
-                .clickable { SoundManager.playClick(); showRocketTuner = !showRocketTuner },
-            contentAlignment = Alignment.Center
-        ) { Text("\uD83D\uDE80", fontSize = 15.sp) }
-
-        if (showRocketTuner) {
-            var durVal by remember { mutableStateOf(RocketTuning.durationMs.value / 10f) }
-            var liftVal by remember { mutableStateOf(RocketTuning.liftDp.value.toFloat()) }
-            var gapVal by remember { mutableStateOf(RocketTuning.preGapMs.value.toFloat()) }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(top = 124.dp, start = 4.dp, end = 4.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xEE111111))
-                    .padding(10.dp)
-            ) {
-                Text("Rocket Tuner", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
-
-                Text("Duration: ${(durVal * 10).toInt()}ms", color = Color(0xFFFFD400), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-                Slider(
-                    value = durVal, valueRange = 1f..200f,
-                    onValueChange = { durVal = it; RocketTuning.durationMs.value = (it * 10).toInt() },
-                    modifier = Modifier.width(240.dp)
-                )
-
-                Text("Lift: ${liftVal.toInt()}dp", color = Color(0xFFFFD400), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-                Slider(
-                    value = liftVal, valueRange = 1f..200f,
-                    onValueChange = { liftVal = it; RocketTuning.liftDp.value = it.toInt() },
-                    modifier = Modifier.width(240.dp)
-                )
-
-                Text("Pre-gap: ${gapVal.toInt()}ms", color = Color(0xFFFFD400), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-                Slider(
-                    value = gapVal, valueRange = 1f..200f,
-                    onValueChange = { gapVal = it; RocketTuning.preGapMs.value = it.toInt() },
-                    modifier = Modifier.width(240.dp)
-                )
-
-                Text(
-                    // Yeh final line copy kar ke bhej dein — hum seedha
-                    // RocketTuning.kt mein lock kar denge.
-                    "duration=${(durVal * 10).toInt()} lift=${liftVal.toInt()} gap=${gapVal.toInt()}",
-                    color = Color(0xFF6EFF8F), fontSize = 10.sp,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
             }
         }
     }
@@ -1141,26 +1082,39 @@ private fun BoxScope.TurnArrow() {
     )
 }
 
-// .game-dice-box: 50x50, rgba white 0.12 bg, 10dp rounded corners
+// .game-dice-box: 50x50. Dice ka size, kone, background (rang / image), ghoomne ka zoom, speed aur
+// face/roll images ab sab admin panel (Game tab) se aate hain — yeh ek hi composable chaaron
+// players ke dice ke liye chalta hai, isliye panel mein ek dice badlo to sab ke badal jate hain.
 @Composable
 private fun PlayerDiceBox(diceValue: Int, rolling: Boolean, isClickable: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val radius = GameTuning.diceRadiusDp.dp
+    val bgImg = GameTuning.diceBgImage()
+    val showBg = GameTuning.diceBgVisible()
+    val zoom = if (rolling) GameTuning.diceRollZoomPct / 100f else 1f
     Box(
         modifier = Modifier
             .size(50.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color.White.copy(alpha = 0.12f))
+            .clip(RoundedCornerShape(radius))
+            .then(
+                if (showBg && bgImg.isBlank())
+                    Modifier.background(GameTuning.diceBgColor.copy(alpha = GameTuning.diceBgAlphaPct / 100f))
+                else Modifier
+            )
             .then(if (isClickable) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center
     ) {
-        // Asal HTML ke ".game-dice-box img.rolling { transform:scale(1.5); }" jaisa hi —
-        // rolling ke dauran dice image 1.5x badi dikhti hai
-        AsyncImage(
-            model = if (rolling) DICE_ROLL_GIF else DICE_FACE_IMG[diceValue],
-            contentDescription = "dice",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(scaleX = if (rolling) 1.5f else 1f, scaleY = if (rolling) 1.5f else 1f)
-        )
+        if (showBg && bgImg.isNotBlank()) {
+            RemoteArt(bgImg, Modifier.fillMaxSize(), ContentScale.FillBounds)
+        }
+        val face = if (rolling) GameTuning.diceRollImage(DICE_ROLL_GIF)
+                   else GameTuning.diceFace(diceValue, DICE_FACE_IMG[diceValue] ?: "")
+        val imgMod = Modifier
+            .fillMaxSize()
+            .graphicsLayer(scaleX = zoom, scaleY = zoom)
+        if (face.startsWith("file:///android_asset")) {
+            AsyncImage(model = face, contentDescription = "dice", contentScale = ContentScale.Fit, modifier = imgMod)
+        } else {
+            RemoteArt(face, imgMod, ContentScale.Fit, "dice")
+        }
     }
 }

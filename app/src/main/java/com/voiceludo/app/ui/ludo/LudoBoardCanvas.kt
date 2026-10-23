@@ -624,18 +624,18 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         } else 0f
                     }
                     val posTweenMs = when {
-                        isRocketFlying -> RocketTuning.durationMs.value
-                        isGliding -> 480
-                        else -> 160
+                        isRocketFlying -> GameTuning.rocketMs
+                        isGliding -> GameTuning.arrowMs
+                        else -> GameTuning.tokenGlideMs
                     }
                     val animX by animateDpAsState(
                         targetValue = targetX,
-                        animationSpec = tween(posTweenMs, easing = FastOutSlowInEasing),
+                        animationSpec = tween(posTweenMs, easing = GameTuning.tokenEase),
                         label = "tokenX"
                     )
                     val animY by animateDpAsState(
                         targetValue = targetY,
-                        animationSpec = tween(posTweenMs, easing = FastOutSlowInEasing),
+                        animationSpec = tween(posTweenMs, easing = GameTuning.tokenEase),
                         label = "tokenY"
                     )
                     // BUG FIX: pehle jab kisi cell mein token aata/jata (jaise
@@ -647,7 +647,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     // smooth ho, achanak jhatka na lage.
                     val animSize by animateDpAsState(
                         targetValue = rawTokenSizeDp,
-                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        animationSpec = tween(GameTuning.tokenSizeMs, easing = FastOutSlowInEasing),
                         label = "tokenSize"
                     )
                     // Rocket udaan ke dauran token seedha line mein nahi, balke
@@ -657,8 +657,8 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                     val flightLift = remember { Animatable(0f) }
                     LaunchedEffect(isRocketFlying) {
                         if (isRocketFlying) {
-                            val d = RocketTuning.durationMs.value
-                            val lift = -RocketTuning.liftDp.value.toFloat()
+                            val d = GameTuning.rocketMs
+                            val lift = -GameTuning.rocketLift.toFloat()
                             flightLift.animateTo(
                                 targetValue = 0f,
                                 animationSpec = keyframes {
@@ -693,8 +693,8 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                                 // teleport jaisa achanak nahi, lekin lagbhag turant nazar
                                 // aata hai.
                                 coroutineScope {
-                                    launch { popScale.animateTo(1f, tween(100, easing = FastOutSlowInEasing)) }
-                                    launch { popAlpha.animateTo(1f, tween(80, easing = FastOutSlowInEasing)) }
+                                    launch { popScale.animateTo(1f, tween(GameTuning.tokenPopMs, easing = FastOutSlowInEasing)) }
+                                    launch { popAlpha.animateTo(1f, tween(GameTuning.tokenPopMs * 8 / 10, easing = FastOutSlowInEasing)) }
                                 }
                             } finally {
                                 // SAFETY NET: agar yeh coroutine beech mein hi cancel ho
@@ -765,8 +765,8 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 val isCurrentTurnYard = color == state.currentColor && color == state.myColor && !state.isMoving.value
 
                 key(color, i) {
-                    val animX by animateDpAsState(targetValue = targetX, animationSpec = tween(230), label = "yardTokenX")
-                    val animY by animateDpAsState(targetValue = targetY, animationSpec = tween(230), label = "yardTokenY")
+                    val animX by animateDpAsState(targetValue = targetX, animationSpec = tween(GameTuning.yardMs), label = "yardTokenX")
+                    val animY by animateDpAsState(targetValue = targetY, animationSpec = tween(GameTuning.yardMs), label = "yardTokenY")
 
                     BoxTokenWithGlow(
                         tokenSizeDp = tokenSizeDp,

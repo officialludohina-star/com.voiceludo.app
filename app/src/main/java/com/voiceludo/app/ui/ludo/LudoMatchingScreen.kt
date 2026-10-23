@@ -128,6 +128,7 @@ fun LudoMatchingScreen(
         )
         // Admin panel ("Game start screen") ka background — panel mein na bana ho to kuch nahi
         ConfigScreenBackground("matching")
+        ConfigScreenElements("matching", navController, "back")
 
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 34.dp),
@@ -240,7 +241,7 @@ fun LudoMatchingScreen(
         }
 
         // Admin panel ("Game start screen") ke icons / SVG / text
-        ConfigScreenElements("matching", navController)
+        ConfigScreenElements("matching", navController, "front")
 
         // Close button — matchmaking queue se nikal jao
         Box(

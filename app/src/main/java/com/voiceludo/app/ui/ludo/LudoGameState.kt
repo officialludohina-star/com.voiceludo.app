@@ -232,11 +232,11 @@ class LudoGameState(
                     // dice_roll/extra_dice sound ab yahan nahi — tap karte hi
                     // (rollDice()/buyExtraRoll() mein) turant baj jati hai,
                     // taake server round-trip ka intezar na karna pade.
-                    delay(380)
+                    delay(GameTuning.diceRollMs.toLong())
                     isRolling.value = false
                     diceByColor[c] = e.value
                     diceRolled.value = true
-                    delay(250)
+                    delay(GameTuning.diceAfterMs.toLong())
                 }
                 "rollAgain" -> {
                     // Informational — savedRolls chain snapshot se hi sync ho jayegi
@@ -315,7 +315,7 @@ class LudoGameState(
             // Ab pop-in animation khud bohot fast (parallel, ~100ms) hai, is liye
             // yahan bhi utna hi kam wait karte hain (thora buffer ke sath) — user
             // ne kaha token yard se nikalte hi foran nazar aana chahiye.
-            delay(140)
+            delay(GameTuning.tokenOutMs.toLong())
             poppingToken.value = null
             // BUG FIX: agar exit wali cell (0) khud arrow-mode mein ek arrow
             // nikli (yani e.to != 0), to pehle yahan seedha e.to par "jump"
@@ -333,14 +333,14 @@ class LudoGameState(
                         pos += 1
                         setPos(pos)
                         SoundManager.playTokenMove()
-                        delay(220)
+                        delay(GameTuning.tokenStepMs.toLong())
                     }
                     arrowGlidingToken.value = key
                     // firework.mp3 — arrow ki tail cell par pohanchte hi (jump
                     // shuru hone se theek pehle), exact us waqt.
                     SoundManager.playFirework()
                     setPos(e.to)
-                    delay(480)
+                    delay(GameTuning.arrowMs.toLong())
                     arrowGlidingToken.value = null
                 } else if (e.rocketBonus) {
                     // Magic Rocket: normal chalne ke bajaye seedha "udh" kar
@@ -350,7 +350,7 @@ class LudoGameState(
                     SoundManager.playRocket()
                     delay(RocketTuning.preGapMs.value.toLong())
                     setPos(e.to)
-                    delay(RocketTuning.durationMs.value.toLong())
+                    delay(GameTuning.rocketMs.toLong())
                     rocketFlyingToken.value = null
                 } else {
                     var pos = 0
@@ -358,7 +358,7 @@ class LudoGameState(
                         pos += 1
                         setPos(pos)
                         SoundManager.playTokenMove()
-                        delay(220)
+                        delay(GameTuning.tokenStepMs.toLong())
                     }
                 }
             }
@@ -376,13 +376,13 @@ class LudoGameState(
                 pos += 1
                 setPos(pos)
                 SoundManager.playTokenMove()
-                delay(220)
+                delay(GameTuning.tokenStepMs.toLong())
             }
             arrowGlidingToken.value = key
             // firework.mp3 — arrow ki tail cell par pohanchte hi.
             SoundManager.playFirework()
             setPos(e.to)
-            delay(480)
+            delay(GameTuning.arrowMs.toLong())
             arrowGlidingToken.value = null
         } else if (e.rocketBonus) {
             // Magic Rocket: is move ka poora safar normal chal kar tay karne
@@ -396,7 +396,7 @@ class LudoGameState(
             SoundManager.playRocket()
             delay(RocketTuning.preGapMs.value.toLong())
             setPos(e.to)
-            delay(RocketTuning.durationMs.value.toLong())
+            delay(GameTuning.rocketMs.toLong())
             rocketFlyingToken.value = null
         } else {
             // Normal move: har cell ek-ek karke, saaf step-step chal ke.
@@ -405,7 +405,7 @@ class LudoGameState(
                 pos += 1
                 setPos(pos)
                 SoundManager.playTokenMove()
-                delay(220)
+                delay(GameTuning.tokenStepMs.toLong())
             }
         }
         setPos(e.to)
@@ -430,11 +430,11 @@ class LudoGameState(
             // kill sound bhi ab exact isi waqt (jab flash/visual kill hoti
             // hai), "move" event ke turant baad nahi.
             SoundManager.playKill()
-            delay(1200)
+            delay(GameTuning.killMs.toLong())
             killerFlashPos.value = null
             killedFlashPos.value = null
         } else if (e.arrowJumped) {
-            delay(160)
+            delay(GameTuning.arrowAfterMs.toLong())
         }
     }
 
