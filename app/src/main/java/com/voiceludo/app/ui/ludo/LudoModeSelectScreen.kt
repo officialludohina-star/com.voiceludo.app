@@ -248,28 +248,37 @@ fun LudoModeSelectScreen(navController: NavController) {
         // Panel mein "Dikhao" band ho to X na dikhta hai na tap hota hai; image lagao to wohi dikhti hai.
         val closeKey = k("Close")
         val closeImg = msImage(closeKey)
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 14.dp, end = 12.dp)
-                .cfgElement(closeKey)
-                .size(width = 44.dp, height = 36.dp)
-                .then(
-                    if (closeImg.isBlank()) Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
-                    else Modifier
-                )
-                .clickable(enabled = msVisible(closeKey)) {
-                    SoundManager.playClick()
-                    navController.popBackStack()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            if (closeImg.isNotBlank()) {
-                RemoteArt(closeImg, Modifier.fillMaxSize(), ContentScale.Fit)
-            } else {
-                Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+        // Dabane ka area bada (72x64dp) — dikhne wala X/image pehle jaisa. Screen par "Peeche jao"
+        // (back) wala apna item ho to asli X nahi dikhta.
+        if (!com.voiceludo.app.ui.common.screenHasBackItem(msId)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .cfgElement(closeKey)
+                    .size(width = 72.dp, height = 64.dp)
+                    .clickable(enabled = msVisible(closeKey)) {
+                        SoundManager.playClick()
+                        navController.popBackStack()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 44.dp, height = 36.dp)
+                        .then(
+                            if (closeImg.isBlank()) Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
+                            else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (closeImg.isNotBlank()) {
+                        RemoteArt(closeImg, Modifier.fillMaxSize(), ContentScale.Fit)
+                    } else {
+                        Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    }
+                }
             }
         }
     }

@@ -33,6 +33,11 @@ object GameTuning {
 
     // ---- Dice ka look (panel Game tab se) ----
     val diceRollZoomPct: Int get() = v("t_dice_roll_zoom", 150, 100, 250)   // ghoomte waqt dice kitna bada dikhe
+    // Number aane par (dice ruk jaye tab) ka size aur animation — rolling se alag
+    val diceResultZoomPct: Int get() = v("t_dice_result_zoom", 100, 50, 250)
+    val diceResultMs: Int get() = v("t_dice_result_ms", 300, 60, 1500)
+    // none | pop | bounce | shake
+    val diceResultAnim: String get() = AppConfigStore.setting("t_dice_result_anim", "none").trim().ifBlank { "none" }
     val diceRadiusDp: Int get() = v("t_dice_radius", 10, 0, 30)             // dice box ke kone
     val diceBgAlphaPct: Int get() = v("t_dice_bg_alpha", 12, 0, 100)        // dice box ke peeche ka rang kitna gehra
     val diceBgColor: Color get() =

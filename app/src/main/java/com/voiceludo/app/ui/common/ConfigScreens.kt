@@ -112,6 +112,20 @@ fun Modifier.cfgElement(key: String): Modifier {
         .cfgAnimation(e.animation)
 }
 
+// Agar screen par panel ka koi dikhta hua item "Peeche jao" (back) action wala hai to
+// app ka apna default close (X) button nahi dikhana chahiye — warna dono nazar aate hain.
+fun screenHasBackItem(screenId: String): Boolean =
+    AppConfigStore.screen(screenId)?.elements?.any { it.visible && it.action == "back" } == true
+
+// Game start (matching) screen: 2 Player = "matching", 4 Player = "matching4" (apne items alag).
+// Wallpaper: 4 Player ki apni na ho to 2 Player wali chalti hai; items kabhi share nahi hote
+// (warna 2 Player ke VS / avatar 4 Player par overlap ho jate hain).
+fun matchingBgId(players: Int): String {
+    if (players != 4) return "matching"
+    val s = AppConfigStore.screen("matching4")
+    return if (s != null && (s.bgImage.isNotBlank() || s.bgColor.isNotBlank())) "matching4" else "matching"
+}
+
 fun parseConfigColor(hex: String, fallback: Color): Color =
     runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(fallback)
 

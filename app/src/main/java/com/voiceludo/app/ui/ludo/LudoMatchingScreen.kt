@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.voiceludo.app.ui.common.ConfigScreenBackground
+import com.voiceludo.app.ui.common.cfgElement
 import com.voiceludo.app.ui.common.ConfigScreenElements
 import coil.compose.SubcomposeAsyncImage
 import com.voiceludo.app.net.BackendClient
@@ -46,6 +47,17 @@ fun LudoMatchingScreen(
 ) {
     val betList = betOptions(players)
     val bet = betList.getOrElse(betIndex) { betList.first() }
+    // 2 Player = "matching", 4 Player = "matching4" (panel mein alag edit hoti hain)
+    val scrId = if (players == 4) "matching4" else "matching"
+    val bgId = com.voiceludo.app.ui.common.matchingBgId(players)
+    // Panel ke icons: 4 Player par agar chheda nahi (default) to 2 Player wali setting chalti hai
+    val qk: (String) -> String = { name ->
+        if (players == 4) {
+            val e4 = com.voiceludo.app.net.AppConfigStore.element("q4$name")
+            val untouched = e4.visible && e4.x == 0 && e4.y == 0 && e4.size == 100 && e4.animation == "none" && e4.image.isBlank()
+            if (untouched) "q2$name" else "q4$name"
+        } else "q2$name"
+    }
     val totalPool = bet * players
     // Match mil jaane par turant navigate nahi karte — pehle 2 second ke liye
     // sabke asal naam/DP dikhate hain (neeche slots mein), phir game screen
@@ -127,8 +139,11 @@ fun LudoMatchingScreen(
             modifier = Modifier.fillMaxSize()
         )
         // Admin panel ("Game start screen") ka background — panel mein na bana ho to kuch nahi
-        ConfigScreenBackground("matching")
-        ConfigScreenElements("matching", navController, "back")
+        ConfigScreenBackground(bgId)
+        // Layers: "back" aur "front" players ki DP ke NEECHE rehte hain (DP hamesha upar dikhti hai);
+        // sirf "top" (panel: "Sab se upar") DP ke bhi upar aata hai.
+        ConfigScreenElements(scrId, navController, "back")
+        ConfigScreenElements(scrId, navController, "front")
 
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 34.dp),
@@ -160,6 +175,7 @@ fun LudoMatchingScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
+                    .cfgElement(qk("Bar"))
                     .padding(top = 0.dp, start = 24.dp, end = 24.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
@@ -183,7 +199,7 @@ fun LudoMatchingScreen(
             // "opponents" list banate hain — sirf index se maan lena galat hota.)
             val opponents = matchedMsg?.let { m -> m.players.filter { it != m.color }.mapNotNull(m.profiles::get) } ?: emptyList()
             if (players == 4) {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.cfgElement(qk("Players"))) {
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         for (i in 0 until 2) {
                             val opp = opponents.getOrNull(i - 1)
@@ -209,7 +225,7 @@ fun LudoMatchingScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(22.dp),
-                    modifier = Modifier.padding(horizontal = 14.dp)
+                    modifier = Modifier.cfgElement(qk("Players")).padding(horizontal = 14.dp)
                 ) {
                     for (i in 0 until players) {
                         val opp = opponents.getOrNull(i - 1)
@@ -221,7 +237,7 @@ fun LudoMatchingScreen(
                         // "VS" sirf dono avatars ke theek beech mein (1v1 look) — waqfa
                         // (gap) horizontalArrangement.spacedBy se pehle hi mil jata hai.
                         if (players == 2 && i == 0) {
-                            AsyncImage(model = VS_ICON_IMG, contentDescription = "VS", modifier = Modifier.size(40.dp))
+                            AsyncImage(model = VS_ICON_IMG, contentDescription = "VS", modifier = Modifier.cfgElement(qk("Vs")).size(40.dp))
                         }
                     }
                 }
@@ -241,23 +257,47 @@ fun LudoMatchingScreen(
         }
 
         // Admin panel ("Game start screen") ke icons / SVG / text
-        ConfigScreenElements("matching", navController, "front")
+        ConfigScreenElements(scrId, navController, "top")
 
-        // Close button — matchmaking queue se nikal jao
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 14.dp, end = 12.dp)
-                .size(width = 44.dp, height = 36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
-                .clickable {
-                    SoundManager.playClick()
-                    BackendClient.leaveRoom()
-                    navController.popBackStack()
-                },
-            contentAlignment = Alignment.Center
-        ) { Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp) }
+        // Close button — matchmaking queue se nikal jao.
+        // Dikhne mein pehle jaisa (44x36), par dabane ka area bada (72x64dp) taake tap aasan ho.
+        // Panel mein Close "Dikhao" band ho, ya screen par "Peeche jao" (back) wala apna item ho,
+        // to yeh asli X nahi dikhta.
+        val closeKey = qk("Close")
+        val eClose = com.voiceludo.app.net.AppConfigStore.element(closeKey)
+        val hideClose = !eClose.visible || com.voiceludo.app.ui.common.screenHasBackItem(scrId)
+        if (!hideClose) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .cfgElement(closeKey)
+                    .size(width = 72.dp, height = 64.dp)
+                    .clickable {
+                        SoundManager.playClick()
+                        BackendClient.leaveRoom()
+                        navController.popBackStack()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 44.dp, height = 36.dp)
+                        .then(
+                            if (eClose.image.isBlank()) Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Brush.verticalGradient(listOf(Color(0xFFff7a2a), Color(0xFFc93a0a))))
+                            else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (eClose.image.isNotBlank()) {
+                        com.voiceludo.app.ui.common.RemoteArt(eClose.image, Modifier.fillMaxSize(), ContentScale.Fit)
+                    } else {
+                        Text("\u2715", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    }
+                }
+            }
+        }
     }
 }
 

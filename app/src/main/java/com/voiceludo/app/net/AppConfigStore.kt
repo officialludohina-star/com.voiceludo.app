@@ -276,7 +276,7 @@ object AppConfigStore {
                                 animation = e.optString("animation", "none"),
                                 action = e.optString("action", ""),
                                 visible = e.optBoolean("visible", true),
-                                layer = if (e.optString("layer") == "back") "back" else "front"
+                                layer = when (e.optString("layer")) { "back" -> "back"; "top" -> "top"; else -> "front" }
                             )
                         )
                     }

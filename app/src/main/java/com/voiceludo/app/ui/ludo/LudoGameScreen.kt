@@ -1088,29 +1088,48 @@ private fun BoxScope.TurnArrow() {
 @Composable
 private fun PlayerDiceBox(diceValue: Int, rolling: Boolean, isClickable: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val radius = GameTuning.diceRadiusDp.dp
+    val shape = RoundedCornerShape(radius)
     val bgImg = GameTuning.diceBgImage()
     val showBg = GameTuning.diceBgVisible()
-    val zoom = if (rolling) GameTuning.diceRollZoomPct / 100f else 1f
+    // Rolling ka size aur number aane (result) ka size/animation alag alag — panel Game tab se
+    val extra = remember { Animatable(1f) }
+    val rot = remember { Animatable(0f) }
+    var wasRolling by remember { mutableStateOf(false) }
+    LaunchedEffect(rolling) {
+        if (wasRolling && !rolling) {
+            val ms = GameTuning.diceResultMs
+            when (GameTuning.diceResultAnim) {
+                "pop" -> { extra.snapTo(1.4f); extra.animateTo(1f, tween(ms, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
+                "bounce" -> { extra.snapTo(0.5f); extra.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.35f, stiffness = 300f)) }
+                "shake" -> {
+                    repeat(3) { rot.animateTo(14f, tween(maxOf(ms / 8, 16))); rot.animateTo(-14f, tween(maxOf(ms / 8, 16))) }
+                    rot.animateTo(0f, tween(maxOf(ms / 8, 16)))
+                }
+            }
+        }
+        wasRolling = rolling
+    }
+    val zoom = (if (rolling) GameTuning.diceRollZoomPct / 100f else GameTuning.diceResultZoomPct / 100f) * extra.value
+    // Clip nahi — taake zoom bada karne par dice box se bahar tak dikhe
     Box(
         modifier = Modifier
             .size(50.dp)
-            .clip(RoundedCornerShape(radius))
             .then(
                 if (showBg && bgImg.isBlank())
-                    Modifier.background(GameTuning.diceBgColor.copy(alpha = GameTuning.diceBgAlphaPct / 100f))
+                    Modifier.background(GameTuning.diceBgColor.copy(alpha = GameTuning.diceBgAlphaPct / 100f), shape)
                 else Modifier
             )
             .then(if (isClickable) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center
     ) {
         if (showBg && bgImg.isNotBlank()) {
-            RemoteArt(bgImg, Modifier.fillMaxSize(), ContentScale.FillBounds)
+            RemoteArt(bgImg, Modifier.fillMaxSize().clip(shape), ContentScale.FillBounds)
         }
         val face = if (rolling) GameTuning.diceRollImage(DICE_ROLL_GIF)
                    else GameTuning.diceFace(diceValue, DICE_FACE_IMG[diceValue] ?: "")
         val imgMod = Modifier
             .fillMaxSize()
-            .graphicsLayer(scaleX = zoom, scaleY = zoom)
+            .graphicsLayer(scaleX = zoom, scaleY = zoom, rotationZ = rot.value)
         if (face.startsWith("file:///android_asset")) {
             AsyncImage(model = face, contentDescription = "dice", contentScale = ContentScale.Fit, modifier = imgMod)
         } else {
