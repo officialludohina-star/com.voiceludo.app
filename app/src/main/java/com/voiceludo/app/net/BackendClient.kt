@@ -10,6 +10,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString
+import okio.ByteString.Companion.toByteString
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -129,6 +131,10 @@ sealed class ServerMessage {
     // Kisi opponent ne mid-game apna naam/avatar badla (updateProfile bheja) —
     // isay real-time update karne ke liye.
     data class OpponentProfile(val color: String, val name: String, val avatar: String) : ServerMessage()
+    // In-game chat — doosre player ne message likha, foran screen par dikhane ke liye.
+    data class Chat(val color: String, val name: String, val text: String) : ServerMessage()
+    // Kisi player ne apna mic on/off kiya — us ki profile par icon badalne ke liye.
+    data class Mic(val color: String, val on: Boolean) : ServerMessage()
     // Har turn (roll ya pending-move) shuru hote hi bekend yeh bhejta hai — us
     // player ki profile par 12-second countdown ring dikhane ke liye.
     data class TurnTimer(val color: String, val seconds: Int) : ServerMessage()
@@ -284,6 +290,13 @@ object BackendClient {
                 parse(text)?.let { notify(it) }
             }
 
+            // Server ke BINARY messages = doosre players ki live awaz (voice.go):
+            // [1 byte: bolne wale ka slot][payload]. Yeh seedha VoiceEngine ko jata hai.
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                if (gen != socketGen) return
+                com.voiceludo.app.audio.VoiceEngine.onIncoming(bytes.toByteArray())
+            }
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e("BackendClient", "ws failure: ${t.message}")
                 synchronized(socketLock) {
@@ -380,6 +393,25 @@ object BackendClient {
 
     fun buyExtraRoll() {
         send(JSONObject().put("type", "buyExtraRoll"))
+    }
+
+    // Live voice: mic ka ek frame (binary). Sirf tab bhejta hai jab connection login ho chuka ho
+    // aur game room mein hon; warna chupchap drop (server bhi room ke bahar ki awaz drop karta hai).
+    fun sendVoiceFrame(data: ByteArray) {
+        if (!authed || !inGame) return
+        socket?.send(data.toByteString())
+    }
+
+    // In-game chat: text server ko jata hai, wahan se foran room ke doosre players ko.
+    fun sendChat(text: String) {
+        val t = text.trim()
+        if (t.isEmpty()) return
+        send(JSONObject().put("type", "chat").put("text", t))
+    }
+
+    // Apna mic on/off status doosre players ko batata hai (taake un ki screen par icon sahi dikhe).
+    fun sendMicState(on: Boolean) {
+        send(JSONObject().put("type", "mic").put("on", on))
     }
 
     fun leaveRoom() {
@@ -636,6 +668,12 @@ object BackendClient {
                     name = obj.optString("name"),
                     avatar = obj.optString("avatar")
                 )
+                "chat" -> ServerMessage.Chat(
+                    color = obj.optString("color"),
+                    name = obj.optString("name"),
+                    text = obj.optString("message")
+                )
+                "mic" -> ServerMessage.Mic(obj.optString("color"), obj.optBoolean("on", true))
                 "turnTimer" -> ServerMessage.TurnTimer(obj.optString("color"), obj.optInt("seconds", 12))
                 "forceLogout" -> {
                     // Server ne yeh (purana) connection band kar diya — apni local

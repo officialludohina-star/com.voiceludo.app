@@ -1,5 +1,8 @@
 package com.voiceludo.app.ui.ludo
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -8,6 +11,16 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import com.voiceludo.app.R
+import com.voiceludo.app.audio.VoiceEngine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -114,6 +127,29 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     // hain, aur screen se nikalte hi room chhod diya jata hai (koi fake bot ab
     // takeover nahi karta jaisa pehle local sim mein hota tha).
     var opponentLeftMsg by remember { mutableStateOf<String?>(null) }
+
+    // ==== Voice chat (mic) + in-game text chat ====
+    // chatBubbles — har player ke message ka chhota bubble (4-5 second ke liye profile ke neeche).
+    // micStates — doosre players ka mic on/off (server "mic" event se); pata na ho to "on" maan lete hain.
+    val chatBubbles = remember { mutableStateMapOf<LudoColor, ChatBubble>() }
+    val micStates = remember { mutableStateMapOf<LudoColor, Boolean>() }
+    val bubbleSeq = remember { intArrayOf(0) }
+    var showChatInput by remember { mutableStateOf(false) }
+    val appCtx = LocalContext.current
+    val micPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        VoiceEngine.onPermissionResult(appCtx, granted)
+        BackendClient.sendMicState(VoiceEngine.micEffective)
+    }
+    DisposableEffect(matched) {
+        VoiceEngine.start(appCtx)
+        if (!VoiceEngine.hasPermission) micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        onDispose { VoiceEngine.stop() }
+    }
+    // Game shuru hote hi apna mic status doosron ko bata do (thori der baad, taake un ka screen ready ho)
+    LaunchedEffect(matched) {
+        delay(1500)
+        BackendClient.sendMicState(VoiceEngine.micEffective)
+    }
     // "wallet" event ka message (jeetne par "pot credit ho gaya", extra-roll
     // khareedne ki confirmation, waghera) — kuch second ke liye ek banner dikhata hai.
     var walletMsg by remember { mutableStateOf<String?>(null) }
@@ -140,6 +176,15 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                     state.applyInitialSnapshot(msg.state)
                     state.applyInitialProfiles(msg.profiles)
                     state.onConnectionRestored()
+                    BackendClient.sendMicState(VoiceEngine.micEffective)
+                }
+                is ServerMessage.Chat -> {
+                    val c = runCatching { LudoColor.valueOf(msg.color) }.getOrNull()
+                    if (c != null && c != myColor) chatBubbles[c] = ChatBubble(++bubbleSeq[0], msg.text)
+                }
+                is ServerMessage.Mic -> {
+                    val c = runCatching { LudoColor.valueOf(msg.color) }.getOrNull()
+                    if (c != null) micStates[c] = msg.on
                 }
                 is ServerMessage.OpponentDisconnected -> walletMsg = "${msg.color} ka connection chala gaya — reconnect ka intezaar"
                 is ServerMessage.OpponentReconnected -> walletMsg = "${msg.color} wapis aa gaya"
@@ -384,6 +429,15 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 ?: if (isSelf) "Aap" else "Player ${i + 1}"
             val avatarUrl = serverProfile?.avatar?.takeIf { it.isNotBlank() }
 
+            // Bubble 4.5 second baad khud gayab
+            val bubbleNow = chatBubbles[color]
+            LaunchedEffect(bubbleNow?.id) {
+                if (bubbleNow != null) {
+                    delay(4500)
+                    if (chatBubbles[color]?.id == bubbleNow.id) chatBubbles.remove(color)
+                }
+            }
+
             val spec = when (pos) {
                 CornerPos.POS_BL -> PosSpec(1f, 79f, -8f, -10f, false)
                 CornerPos.POS_TL -> PosSpec(1f, 10f, -6f, 12f, false)
@@ -418,7 +472,26 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                         showTimerRing = !state.gameOver.value && state.turnTimerColor.value == color,
                         timerSeconds = state.turnTimerSeconds.value,
                         timerKey = state.turnTimerKey.value,
-                        hasGoldenDice = color in state.goldenDiceHolders
+                        hasGoldenDice = color in state.goldenDiceHolders,
+                        // Mic icon: apni profile par button (on/off), doosron ki par sirf status.
+                        micOn = if (isSelf) VoiceEngine.micEffective else (micStates[color] ?: true),
+                        onMicClick = if (isSelf) ({
+                            SoundManager.playClick()
+                            if (!VoiceEngine.hasPermission) {
+                                micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            } else {
+                                BackendClient.sendMicState(VoiceEngine.toggleMic())
+                            }
+                        }) else null,
+                        speaking = if (isSelf) VoiceEngine.SELF_SLOT in VoiceEngine.speaking
+                                   else color.ordinal in VoiceEngine.speaking,
+                        // Chat icon sirf apni profile par; tap par message likhne ki bar khulti hai.
+                        onChatClick = if (isSelf) ({
+                            SoundManager.playClick()
+                            showChatInput = !showChatInput
+                        }) else null,
+                        chatBubble = chatBubbles[color]?.text,
+                        bubbleShift = if (spec.alignEnd) (-30).dp else 30.dp
                     )
                 }
                 // Panel (Screens > Game board) se profile / dice ki jagah, size, animation
@@ -703,6 +776,63 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
             )
         }
 
+        // ==== In-game chat input ====
+        // Likhte hi Send karo — server foran room ke doosre players ko bhej deta hai aur un ki
+        // screen par aap ki profile ke neeche bubble aa jata hai.
+        if (showChatInput) {
+            var chatText by remember { mutableStateOf("") }
+            val focusRequester = remember { FocusRequester() }
+            val sendIt: () -> Unit = {
+                val t = chatText.trim()
+                if (t.isNotEmpty()) {
+                    BackendClient.sendChat(t)
+                    chatBubbles[myColor] = ChatBubble(++bubbleSeq[0], t.take(120))
+                    chatText = ""
+                    showChatInput = false
+                }
+            }
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(Color(0xEE111111))
+                    .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_voice_chat),
+                    contentDescription = "chat",
+                    modifier = Modifier.size(28.dp)
+                )
+                TextField(
+                    value = chatText,
+                    onValueChange = { if (it.length <= 120) chatText = it },
+                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                    singleLine = true,
+                    placeholder = { Text("Type a message…", color = Color(0xFF9AA0A6)) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { sendIt() }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White
+                    )
+                )
+                TextButton(onClick = { sendIt() }) {
+                    Text("Send", color = Color(0xFFFFB84D), fontWeight = FontWeight.Black)
+                }
+            }
+        }
+
         // ==== TEMP: Rocket flight tuning panel ====
         // User rocket ki udaan (duration/lift/pre-gap) khud live adjust kar ke
         // dekhna chahte hain, phir final numbers bata denge jo hum seedha
@@ -767,6 +897,8 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     }
 }
 
+private data class ChatBubble(val id: Int, val text: String)
+
 private data class PosSpec(val baseX: Float, val baseY: Float, val translateX: Float, val translateY: Float, val alignEnd: Boolean)
 
 @Composable
@@ -799,7 +931,13 @@ private fun PlayerProfileBox(
     showTimerRing: Boolean,
     timerSeconds: Int,
     timerKey: Int,
-    hasGoldenDice: Boolean = false
+    hasGoldenDice: Boolean = false,
+    micOn: Boolean = true,
+    onMicClick: (() -> Unit)? = null,
+    speaking: Boolean = false,
+    onChatClick: (() -> Unit)? = null,
+    chatBubble: String? = null,
+    bubbleShift: Dp = 0.dp
 ) {
     Column(
         modifier = Modifier.width(66.dp),
@@ -841,9 +979,41 @@ private fun PlayerProfileBox(
                     .align(Alignment.Center)
                     .size(44.dp)
                     .clip(CircleShape)
-                    .border(2.dp, Color.White, CircleShape)
+                    .border(if (speaking) 3.dp else 2.dp, if (speaking) Color(0xFF2ECC40) else Color.White, CircleShape)
                     .background(ludoColorOf(color))
             )
+            // Mic icon (on/off) — har player ki profile ke saath. Apni par tap karne se on/off.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 7.dp, y = 7.dp)
+                    .size(30.dp)
+                    .then(if (onMicClick != null) Modifier.clickable { onMicClick() } else Modifier),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(if (micOn) R.drawable.ic_voice_mic_on else R.drawable.ic_voice_mic_off),
+                    contentDescription = if (micOn) "mic on" else "mic off",
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            // Chat icon — sirf apni profile par
+            if (onChatClick != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-9).dp, y = (-7).dp)
+                        .size(30.dp)
+                        .clickable { onChatClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_voice_chat),
+                        contentDescription = "chat",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
             if (rank != null) {
                 AsyncImage(
                     model = RANK_BADGE_IMG[rank],
@@ -886,6 +1056,33 @@ private fun PlayerProfileBox(
                 .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
                 .padding(horizontal = 4.dp, vertical = 1.dp)
         )
+        // Chat bubble — naam ke neeche (zero-height box mein, taake layout na hile)
+        if (chatBubble != null) {
+            Box(
+                modifier = Modifier.width(66.dp).height(0.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = bubbleShift)
+                        .wrapContentSize(Alignment.TopCenter, unbounded = true)
+                        .widthIn(max = 120.dp)
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.96f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        chatBubble,
+                        color = Color(0xFF1B1B1B),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
     }
 }
 

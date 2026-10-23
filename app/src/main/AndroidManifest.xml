@@ -7,6 +7,11 @@
          ConnectivityManager.registerNetworkCallback use karta hai — is ke
          bagair app khulte hi SecurityException se crash ho jati thi. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Game ke andar live voice chat (mic) ke liye. Runtime par bhi permission maangi jati hai
+         (LudoGameScreen) — Android 6+ par sirf manifest kaafi nahi. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
         android:allowBackup="true"
