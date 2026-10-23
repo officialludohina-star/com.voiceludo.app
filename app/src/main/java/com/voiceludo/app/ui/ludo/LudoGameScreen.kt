@@ -53,6 +53,7 @@ import androidx.navigation.NavController
 import com.voiceludo.app.net.AppConfigStore
 import com.voiceludo.app.ui.common.ConfigScreenBackground
 import com.voiceludo.app.ui.common.cfgElement
+import com.voiceludo.app.ui.common.RemoteArt
 import com.voiceludo.app.ui.common.ConfigScreenElements
 import coil.compose.AsyncImage
 import com.voiceludo.app.audio.SoundManager
@@ -284,6 +285,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 .align(Alignment.Center)
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .cfgElement(gp + "Board")
                 .graphicsLayer(rotationZ = rotationSteps * 90f)
         ) {
             LudoBoardCanvas(state) { _, idx ->
@@ -491,7 +493,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                             showChatInput = !showChatInput
                         }) else null,
                         chatBubble = chatBubbles[color]?.text,
-                        bubbleShift = if (spec.alignEnd) (-30).dp else 30.dp
+                        bubbleShift = if (spec.alignEnd) (-30).dp else 30.dp,
+                        micKey = gp + "Mic" + cornerKey,
+                        nameKey = gp + "Name" + cornerKey,
+                        chatKey = gp + "Chat"
                     )
                 }
                 // Panel (Screens > Game board) se profile / dice ki jagah, size, animation
@@ -589,7 +594,12 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                     }
                 }
                 val dice = @Composable {
-                    Box(Modifier.cfgElement(gp + "Dice" + cornerKey)) { diceInner() }
+                    Box(
+                        Modifier.cfgElement(gp + "Dice" + cornerKey).graphicsLayer(
+                            scaleX = GameTuning.diceScalePct / 100f,
+                            scaleY = GameTuning.diceScalePct / 100f
+                        )
+                    ) { diceInner() }
                 }
                 // Player 3 (pos-tr) aur Player 4 (pos-br) ke liye dice pehle, profile baad me
                 if (pos == CornerPos.POS_TR || pos == CornerPos.POS_BR) {
@@ -937,7 +947,10 @@ private fun PlayerProfileBox(
     speaking: Boolean = false,
     onChatClick: (() -> Unit)? = null,
     chatBubble: String? = null,
-    bubbleShift: Dp = 0.dp
+    bubbleShift: Dp = 0.dp,
+    micKey: String = "",
+    nameKey: String = "",
+    chatKey: String = ""
 ) {
     Column(
         modifier = Modifier.width(66.dp),
@@ -987,15 +1000,26 @@ private fun PlayerProfileBox(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .offset(x = 7.dp, y = 7.dp)
+                    .then(if (micKey.isNotEmpty()) Modifier.cfgElement(micKey) else Modifier)
                     .size(30.dp)
-                    .then(if (onMicClick != null) Modifier.clickable { onMicClick() } else Modifier),
+                    .then(
+                        if (onMicClick != null) Modifier.clickable(
+                            enabled = micKey.isEmpty() || AppConfigStore.element(micKey).visible
+                        ) { onMicClick() } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(if (micOn) R.drawable.ic_voice_mic_on else R.drawable.ic_voice_mic_off),
-                    contentDescription = if (micOn) "mic on" else "mic off",
-                    modifier = Modifier.size(22.dp)
-                )
+                // Panel (Game tab) se mic ki apni image lagi ho to wohi, warna app ki
+                val micImg = GameTuning.micImage(micOn)
+                if (micImg.isNotBlank()) {
+                    RemoteArt(micImg, Modifier.size(22.dp), ContentScale.Fit)
+                } else {
+                    Image(
+                        painter = painterResource(if (micOn) R.drawable.ic_voice_mic_on else R.drawable.ic_voice_mic_off),
+                        contentDescription = if (micOn) "mic on" else "mic off",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
             // Chat icon — sirf apni profile par
             if (onChatClick != null) {
@@ -1003,15 +1027,21 @@ private fun PlayerProfileBox(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .offset(x = (-9).dp, y = (-7).dp)
+                        .then(if (chatKey.isNotEmpty()) Modifier.cfgElement(chatKey) else Modifier)
                         .size(30.dp)
-                        .clickable { onChatClick() },
+                        .clickable(enabled = chatKey.isEmpty() || AppConfigStore.element(chatKey).visible) { onChatClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_voice_chat),
-                        contentDescription = "chat",
-                        modifier = Modifier.size(22.dp)
-                    )
+                    val chatImg = GameTuning.chatImage()
+                    if (chatImg.isNotBlank()) {
+                        RemoteArt(chatImg, Modifier.size(22.dp), ContentScale.Fit)
+                    } else {
+                        Image(
+                            painter = painterResource(R.drawable.ic_voice_chat),
+                            contentDescription = "chat",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
             if (rank != null) {
@@ -1051,6 +1081,7 @@ private fun PlayerProfileBox(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier
+                .then(if (nameKey.isNotEmpty()) Modifier.cfgElement(nameKey) else Modifier)
                 .padding(top = 5.dp)
                 .width(66.dp)
                 .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))

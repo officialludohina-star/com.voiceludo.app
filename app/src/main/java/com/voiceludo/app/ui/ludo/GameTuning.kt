@@ -20,6 +20,14 @@ object GameTuning {
     val rocketMs: Int get() = num("t_rocket_ms")?.coerceIn(200, 3000) ?: RocketTuning.durationMs.value
     val rocketLift: Int get() = num("t_rocket_lift")?.coerceIn(0, 200) ?: RocketTuning.liftDp.value
 
+    // Panel (Game tab) se: sab dice / sab token ka size (%), 100 = jaisa abhi hai
+    val diceScalePct: Int get() = v("t_dice_scale", 100, 30, 300)
+    val tokenScalePct: Int get() = v("t_token_scale", 100, 40, 250)
+
+    // Mic / chat icon ki images (panel mein khali = app ki apni image)
+    fun micImage(on: Boolean): String = AppConfigStore.element(if (on) "g_micOn" else "g_micOff").image
+    fun chatImage(): String = AppConfigStore.element("g_chat").image
+
     // Dice ki images (panel mein khali = app ki apni image)
     fun diceFace(value: Int, default: String): String =
         AppConfigStore.element("g_dice$value").image.ifBlank { default }

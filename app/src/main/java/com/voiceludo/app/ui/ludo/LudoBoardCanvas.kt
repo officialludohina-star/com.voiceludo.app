@@ -227,6 +227,8 @@ private fun BoxTokenWithGlow(
         wasRocketFlying = isRocketFlying
     }
 
+    // Panel (Game tab) ka "Token ka size %" — token apne center se chhota-bada hota hai
+    val tokenScale = GameTuning.tokenScalePct / 100f
     Box(
         modifier = Modifier
             .size(tokenSizeDp * 1.9f)
@@ -235,8 +237,8 @@ private fun BoxTokenWithGlow(
                 y = animY + bounceDy - (tokenSizeDp * 0.45f)
             )
             .graphicsLayer {
-                scaleX = popScale
-                scaleY = popScale
+                scaleX = popScale * tokenScale
+                scaleY = popScale * tokenScale
                 alpha = popAlpha
             },
         contentAlignment = Alignment.Center
