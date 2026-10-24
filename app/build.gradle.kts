@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Firebase (Google/Facebook login) — app/google-services.json isi plugin se padhi jati hai
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,6 +15,19 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+    }
+
+    // FIXED debug key: GitHub Actions har build par nayi debug key banata hai, jis se SHA-1
+    // badal jata aur Google login "error 10"/"no credentials" dene lagta. Ab har build isi
+    // app/debug.keystore se sign hota hai, to SHA-1 hamesha ek hi rehta hai (Firebase mein
+    // iska SHA-1 add hona zaroori hai). Yeh sirf DEBUG key hai (public), release key nahi.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -60,4 +75,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // Admin panel se aane wali .svga animation files chalane ke liye
     implementation("com.github.yyued:SVGAPlayer-Android:2.6.1")
+
+    // ---- Google login (Firebase Authentication + Credential Manager) ----
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 }

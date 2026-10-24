@@ -336,7 +336,7 @@ object BackendClient {
     // socket band ho — taake kabhi bhi "pehle signup ya login karein" na aaye
     // jab user asal mein login hi ho.
     @Volatile private var authed = false
-    private val authBootstrapTypes = setOf("login", "signup", "resume", "loginWithToken", "resetPassword", "requestPasswordReset", "requestSignupOtp")
+    private val authBootstrapTypes = setOf("login", "signup", "resume", "loginWithToken", "resetPassword", "requestPasswordReset", "requestSignupOtp", "socialLogin")
 
     private fun send(obj: JSONObject) {
         ensureConnected()
@@ -375,6 +375,13 @@ object BackendClient {
 
     fun login(email: String, password: String) {
         send(JSONObject().put("type", "login").put("email", email).put("password", password))
+    }
+
+    // Google (aur baad mein Facebook) login — app ko Firebase se jo ID token mila hai wahi
+    // yahan bhejte hain. Server usay khud verify karta hai, jawab mein wahi "auth" aata hai
+    // jo email/password login mein aata hai.
+    fun socialLogin(firebaseIdToken: String) {
+        send(JSONObject().put("type", "socialLogin").put("id_token", firebaseIdToken))
     }
 
     // Forgot Password — email par pehle app khud (EmailService) OTP bhej kar

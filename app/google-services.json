@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "427973149136",
+    "project_id": "voice-party-bekend-sarver-ids",
+    "storage_bucket": "voice-party-bekend-sarver-ids.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427973149136:android:1c8f427f9183de48a239d5",
+        "android_client_info": {
+          "package_name": "com.voiceludo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "427973149136-pck8gcr2opccho2n04uva7tf6pjtrier.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.voiceludo.app",
+            "certificate_hash": "5cdbd70d59e68c5441ed2c26fc3472f0115617f7"
+          }
+        },
+        {
+          "client_id": "427973149136-c5u5mdondn8frdcvjq55qf44eebjdf1p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzGc8R2LBOtvPctZ5Hp7RjkUKuU5cBHVA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "427973149136-c5u5mdondn8frdcvjq55qf44eebjdf1p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,25 +1,31 @@
 package com.voiceludo.app.ui.voiceparty
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.voiceludo.app.net.BackendClient
+import com.voiceludo.app.net.GoogleSignInHelper
 import com.voiceludo.app.net.ServerMessage
 import com.voiceludo.app.net.SessionStore
 import com.voiceludo.app.ui.common.LoadingOverlay
 import com.voiceludo.app.ui.ludo.NO_CONNECTION_ICON
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val LOGIN_BG = "file:///android_asset/img/login_bg.png"
 
@@ -38,6 +44,12 @@ fun GmailLoginScreen(navController: NavController) {
     var pass by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
+    // Google login: account chooser/Firebase step (isme 10s timeout nahi lagta — user ko
+    // account chunne mein waqt lag sakta hai). Token milte hi normal `loading` shuru hota hai.
+    var googleBusy by remember { mutableStateOf(false) }
+    var googleFlow by remember { mutableStateOf(false) }
+    var googleEmail by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
     // WebSocket bekend se connect hi na ho paye (net na ho ya server down) — is
     // waqt baar-baar screen par NO_CONNECTION_ICON dikhaya jata hai.
     var connectionLost by remember { mutableStateOf(false) }
@@ -60,7 +72,10 @@ fun GmailLoginScreen(navController: NavController) {
                 is ServerMessage.Auth -> {
                     loading = false
                     connectionLost = false
-                    AccountStore.saveSession(context, "gmail", email)
+                    AccountStore.saveSession(
+                        context, "gmail",
+                        if (googleFlow) googleEmail.ifBlank { "Google account" } else email
+                    )
                     SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds, msg.gameId)
                     navController.navigate("vp_home")
                 }
@@ -170,13 +185,54 @@ fun GmailLoginScreen(navController: NavController) {
                     onLeft = { navController.navigate("vp_forgot_password") },
                     onRight = { navController.navigate("vp_gmail_signup") }
                 )
+
+                Spacer(Modifier.height(14.dp))
+
+                // Asal Google login (Firebase). Naya user ho to account khud ban jata hai.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(25.dp))
+                        .background(Color.White)
+                        .clickable(enabled = !loading && !googleBusy) {
+                            com.voiceludo.app.audio.SoundManager.playClick()
+                            errorText = ""
+                            googleBusy = true
+                            scope.launch {
+                                GoogleSignInHelper.signIn(
+                                    activityContext = context,
+                                    onSuccess = { firebaseToken, mail ->
+                                        googleBusy = false
+                                        googleFlow = true
+                                        googleEmail = mail
+                                        loading = true
+                                        BackendClient.socialLogin(firebaseToken)
+                                    },
+                                    onError = { msg ->
+                                        googleBusy = false
+                                        errorText = msg
+                                    }
+                                )
+                            }
+                        }
+                ) {
+                    Text(
+                        "G  Continue with Google",
+                        color = Color(0xFF3c4043),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 
         // Jab tak bekend se jawab (Auth ya error) na aa jaye, poori screen block —
         // aage nahi badh sakte, dobara button bhi nahi daba sakte.
-        if (loading) {
-            LoadingOverlay("Logging in...")
+        if (loading || googleBusy) {
+            LoadingOverlay(if (googleBusy) "Connecting to Google..." else "Logging in...")
         }
     }
 }
