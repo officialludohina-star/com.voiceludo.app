@@ -31,6 +31,13 @@ object GameTuning {
     val diceScalePct: Int get() = v("t_dice_scale", 100, 30, 300)
     val tokenScalePct: Int get() = v("t_token_scale", 100, 40, 250)
 
+    // ---- Token animation (panel Game tab > "Token animation"). "none" = pehle jaisa, koi badlav nahi ----
+    val moveFx: String get() = AppConfigStore.setting("t_token_move_fx", "none").trim().ifBlank { "none" }   // none | glow | ring | pulse
+    val landFx: String get() = AppConfigStore.setting("t_token_land_fx", "none").trim().ifBlank { "none" }   // none | pop | bounce | ripple
+    val killFx: String get() = AppConfigStore.setting("t_token_kill_fx", "none").trim().ifBlank { "none" }   // none | shake | spin | shrink | fade
+    val fxMs: Int get() = v("t_token_fx_ms", 450, 100, 1500)
+    val fxColor: Color get() = parseConfigColor(AppConfigStore.setting("t_token_fx_color", "#FFD400"), Color(0xFFFFD400))
+
     // ---- Dice ka look (panel Game tab se) ----
     val diceRollZoomPct: Int get() = v("t_dice_roll_zoom", 150, 100, 250)   // ghoomte waqt dice kitna bada dikhe
     // Number aane par (dice ruk jaye tab) ka size aur animation — rolling se alag

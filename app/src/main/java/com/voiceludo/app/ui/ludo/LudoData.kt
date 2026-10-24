@@ -150,7 +150,7 @@ const val BET_PLUS_ICON = "file:///android_asset/img/regression-coin-add-check.w
 const val COIN_ICON = "file:///android_asset/img/coin-v.png"
 const val GOLDEN_DICE_ICON = "file:///android_asset/img/icon-golden-dice.webp"
 
-val BET_OPTIONS = listOf(500, 2000, 10000, 20000, 50000, 100000, 250000, 500000, 1000000, 5000000, 10000000, 20000000)
+val BET_OPTIONS = listOf(500, 2000, 10000, 20000, 50000, 100000, 200000, 250000, 500000, 1000000, 2000000, 3000000, 5000000)
 
 // Admin panel (Bets tab) ki values: settings "bets_2" (2 Player) / "bets_4" (4 Player), ya purani "bets".
 // Panel mein kuch set na ho to upar wali purani list hi chalti hai.

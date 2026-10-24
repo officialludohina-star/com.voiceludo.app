@@ -87,6 +87,13 @@ class LudoGameState(
     var movable = mutableStateListOf<Int>()
     var killerFlashPos = mutableStateOf<Int?>(null)
     var killedFlashPos = mutableStateOf<Int?>(null)
+    // Token animation (panel "Token animation") ke liye: jo token abhi chal raha hai ("RED_2"), jo abhi ruka
+    // (landedTick har dafa badhta hai taake same token dobara ruke to bhi animation chale), aur kill par jin
+    // colors ke token us cell se ja rahe hain.
+    var movingTokenKey = mutableStateOf<String?>(null)
+    var landedTokenKey = mutableStateOf<String?>(null)
+    var landedTick = mutableStateOf(0)
+    var killedColors = mutableStateOf<Set<String>>(emptySet())
 
     var gameOver = mutableStateOf(false)
     var winnerText = mutableStateOf("")
@@ -302,6 +309,7 @@ class LudoGameState(
             partnerIdx?.let { t[it] = pos }
         }
         isMoving.value = true
+        movingTokenKey.value = "${color}_${e.tokenIndex}"
 
         if (e.from == -1) {
             // Ghar/yard se nikalna: yard aur path do alag render-trees hain
@@ -410,6 +418,9 @@ class LudoGameState(
         }
         setPos(e.to)
         isMoving.value = false
+        movingTokenKey.value = null
+        landedTokenKey.value = "${color}_${e.tokenIndex}"
+        landedTick.value += 1
 
         // Golden-Dice magic effect — walk poora hone ke exact waqt par.
         // (Rocket ka sound ab launch ke theek waqt par upar hi bajta hai,
@@ -427,12 +438,14 @@ class LudoGameState(
             val g = globalCellOf(color, e.to)
             killerFlashPos.value = g
             killedFlashPos.value = g
+            killedColors.value = e.captured.toSet()
             // kill sound bhi ab exact isi waqt (jab flash/visual kill hoti
             // hai), "move" event ke turant baad nahi.
             SoundManager.playKill()
             delay(GameTuning.killMs.toLong())
             killerFlashPos.value = null
             killedFlashPos.value = null
+            killedColors.value = emptySet()
         } else if (e.arrowJumped) {
             delay(GameTuning.arrowAfterMs.toLong())
         }

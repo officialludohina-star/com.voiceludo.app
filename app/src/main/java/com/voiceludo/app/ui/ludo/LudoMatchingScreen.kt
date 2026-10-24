@@ -144,6 +144,8 @@ fun LudoMatchingScreen(
         // sirf "top" (panel: "Sab se upar") DP ke bhi upar aata hai.
         ConfigScreenElements(scrId, navController, "back")
         ConfigScreenElements(scrId, navController, "front")
+        // "top" bhi ab DP ke NEECHE hi rehta hai — gift/shield/frame kuch bhi lagao, players ki DP aur naam hamesha sab se aage dikhte hain.
+        ConfigScreenElements(scrId, navController, "top")
 
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 34.dp),
@@ -256,8 +258,6 @@ fun LudoMatchingScreen(
             }
         }
 
-        // Admin panel ("Game start screen") ke icons / SVG / text
-        ConfigScreenElements(scrId, navController, "top")
 
         // Close button — matchmaking queue se nikal jao.
         // Dikhne mein pehle jaisa (44x36), par dabane ka area bada (72x64dp) taake tap aasan ho.

@@ -169,7 +169,10 @@ private fun BoxTokenWithGlow(
     popScale: Float = 1f,
     popAlpha: Float = 1f,
     isRocketFlying: Boolean = false,
-    rocketAngle: Float = 0f
+    rocketAngle: Float = 0f,
+    fxMoving: Boolean = false,
+    fxLandTick: Int = 0,
+    fxKilled: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "tokenGlow")
     val glowScale by infiniteTransition.animateFloat(
@@ -229,17 +232,53 @@ private fun BoxTokenWithGlow(
 
     // Panel (Game tab) ka "Token ka size %" — token apne center se chhota-bada hota hai
     val tokenScale = GameTuning.tokenScalePct / 100f
+
+    // ---- Token animation FX (panel Game tab > "Token animation"): "none" par kuch nahi badalta ----
+    val fxColor = GameTuning.fxColor
+    val moveFx = GameTuning.moveFx
+    val landFx = GameTuning.landFx
+    val killFx = GameTuning.killFx
+    val landProg = remember { Animatable(1f) }
+    LaunchedEffect(fxLandTick) {
+        if (fxLandTick > 0 && landFx != "none") {
+            landProg.snapTo(0f)
+            landProg.animateTo(1f, tween(GameTuning.fxMs, easing = FastOutSlowInEasing))
+        }
+    }
+    val killProg = remember { Animatable(0f) }
+    LaunchedEffect(fxKilled) {
+        if (fxKilled && killFx != "none") {
+            killProg.snapTo(0f)
+            killProg.animateTo(1f, tween(GameTuning.killMs.coerceAtLeast(200), easing = FastOutSlowInEasing))
+        } else {
+            killProg.snapTo(0f)
+        }
+    }
+    val lp = landProg.value
+    val kp = killProg.value
+    val fxPulse = if (fxMoving && moveFx == "pulse") 1f + (glowScale - 1f) * 0.45f else 1f
+    val fxLandScale = if (landFx == "pop") 1f + 0.4f * (1f - lp) else 1f
+    val fxLandDy = if (landFx == "bounce") tokenSizeDp * (-0.7f * kotlin.math.sin(Math.PI.toFloat() * lp)) else 0.dp
+    val fxKillScale = when (killFx) { "shrink" -> 1f - 0.85f * kp; "spin" -> 1f - 0.4f * kp; else -> 1f }
+    val fxKillAlpha = if (killFx == "fade") 1f - kp else 1f
+    val fxKillRot = when (killFx) {
+        "shake" -> kotlin.math.sin(kp * 8f * Math.PI.toFloat()) * 18f * (1f - kp * 0.3f)
+        "spin" -> 720f * kp
+        else -> 0f
+    }
+
     Box(
         modifier = Modifier
             .size(tokenSizeDp * 1.9f)
             .offset(
                 x = animX - (tokenSizeDp * 0.45f),
-                y = animY + bounceDy - (tokenSizeDp * 0.45f)
+                y = animY + bounceDy + fxLandDy - (tokenSizeDp * 0.45f)
             )
             .graphicsLayer {
-                scaleX = popScale * tokenScale
-                scaleY = popScale * tokenScale
-                alpha = popAlpha
+                scaleX = popScale * tokenScale * fxPulse * fxLandScale * fxKillScale
+                scaleY = popScale * tokenScale * fxPulse * fxLandScale * fxKillScale
+                alpha = popAlpha * fxKillAlpha
+                rotationZ = fxKillRot
             },
         contentAlignment = Alignment.Center
     ) {
@@ -275,6 +314,31 @@ private fun BoxTokenWithGlow(
                         Brush.radialGradient(listOf(Color.White, Color.White.copy(alpha = 0f))),
                         CircleShape
                     )
+            )
+        }
+        // Token chalte waqt uske gird animation (glow / ring) aur ruk jane par ripple
+        if (fxMoving && moveFx == "glow") {
+            Box(
+                modifier = Modifier
+                    .size(tokenSizeDp * 1.7f)
+                    .graphicsLayer { scaleX = glowScale; scaleY = glowScale }
+                    .background(Brush.radialGradient(listOf(fxColor.copy(alpha = 0.85f), fxColor.copy(alpha = 0f))), CircleShape)
+            )
+        }
+        if (fxMoving && moveFx == "ring") {
+            Box(
+                modifier = Modifier
+                    .size(tokenSizeDp * 1.55f)
+                    .graphicsLayer { scaleX = ringScale; scaleY = ringScale; alpha = ringAlpha + 0.3f }
+                    .border(2.dp, fxColor, CircleShape)
+            )
+        }
+        if (landFx == "ripple" && lp < 1f) {
+            Box(
+                modifier = Modifier
+                    .size(tokenSizeDp * (1f + 1.4f * lp))
+                    .graphicsLayer { alpha = 1f - lp }
+                    .border(2.dp, fxColor, CircleShape)
             )
         }
         if (isMovable) {
@@ -723,6 +787,11 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         isCurrentTurn = isCurrentTurn,
                         isRocketFlying = isRocketFlying,
                         rocketAngle = rocketAngle,
+                        fxMoving = state.movingTokenKey.value == id,
+                        fxLandTick = if (state.landedTokenKey.value == id) state.landedTick.value else 0,
+                        fxKilled = state.killedFlashPos.value != null &&
+                            t.color.name in state.killedColors.value &&
+                            state.globalCellOf(t.color, state.tokens.getValue(t.color)[t.idx]) == state.killedFlashPos.value,
                         tokenColor = t.color,
                         imageUrl = TOKEN_IMG[t.color],
                         contentDescription = "${t.color} token ${t.idx}",
