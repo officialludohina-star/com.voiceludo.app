@@ -7,7 +7,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.firebase.auth.FirebaseAuth
@@ -36,11 +36,11 @@ object GoogleSignInHelper {
     ) {
         try {
             val credentialManager = CredentialManager.create(activityContext)
-            val option = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(WEB_CLIENT_ID)
-                .setAutoSelectEnabled(false)
-                .build()
+            // GetSignInWithGoogleOption = "Sign in with Google" button wala flow. Ye har
+            // Google account dikhata hai (naye/unauthorized bhi) aur button-tap ke liye
+            // Google ka recommended tareeqa hai. Purana GetGoogleIdOption "no credentials"
+            // de deta tha jab account pehle kabhi is app se authorize nahi hua tha.
+            val option = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID).build()
             val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
             val result = credentialManager.getCredential(context = activityContext, request = request)
             val credential = result.credential
@@ -73,7 +73,9 @@ object GoogleSignInHelper {
         } catch (e: GetCredentialCancellationException) {
             onError("Google login cancelled.")
         } catch (e: NoCredentialException) {
-            onError("No Google account found on this phone. Please add a Google account in phone Settings and try again.")
+            // NOTE: Ye error tab bhi aata hai jab APK ka SHA-1 Firebase mein registered na ho
+            // (sirf "phone mein account nahi" ka matlab nahi). Isliye saaf detail dikhate hain.
+            onError("Google login failed (no credential). Add a Google account on this phone, update Google Play services, and make sure this app's SHA-1 is added in Firebase. [${e.type}]")
         } catch (e: GoogleIdTokenParsingException) {
             onError("Google login failed: invalid Google response.")
         } catch (e: GetCredentialException) {

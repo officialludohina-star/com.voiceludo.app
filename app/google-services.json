@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "427973149136-pck8gcr2opccho2n04uva7tf6pjtrier.apps.googleusercontent.com",
+          "client_id": "427973149136-etgp9dbmqfrkn7og3bqar3u4m5ea0v4q.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.voiceludo.app",
-            "certificate_hash": "5cdbd70d59e68c5441ed2c26fc3472f0115617f7"
+            "certificate_hash": "9cb09b39d82478d9707bbaf2b3e7e2db9b42ec14"
           }
         },
         {
