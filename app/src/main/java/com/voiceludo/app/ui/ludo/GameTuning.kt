@@ -31,6 +31,27 @@ object GameTuning {
     val diceScalePct: Int get() = v("t_dice_scale", 100, 30, 300)
     val tokenScalePct: Int get() = v("t_token_scale", 100, 40, 250)
 
+    // ---- Ek cell mein 2/3/4 token ek sath hon to (panel Game tab > "Ek jagah kai token") ----
+    // Size har token ka (cell ka %). Default 74 = pehle jaisa. spread = tokens ke beech faasla (100 = pehle jaisa).
+    fun stackSizePct(count: Int): Float = when {
+        count <= 1 -> 100f
+        count == 2 -> v("t_stack2_size", 74, 40, 100).toFloat()
+        count == 3 -> v("t_stack3_size", 74, 40, 100).toFloat()
+        else -> v("t_stack4_size", 74, 40, 100).toFloat()
+    }
+    val stackSpreadPct: Int get() = v("t_stack_spread", 100, 0, 250)
+    // 1 = jis ki bari ho uska token (jo chal sakta ho) stack mein sab se upar aaye
+    val stackTopOn: Boolean get() = v("t_stack_top", 1, 0, 1) == 1
+
+    // ---- Turn ka glow (panel Game tab > "Turn ka glow") ----
+    val turnGlowOn: Boolean get() = v("t_turn_glow", 1, 0, 1) == 1
+    val turnGlowSizePct: Int get() = v("t_turn_glow_size", 155, 100, 260)
+    // Khali = token ka apna rang
+    val turnGlowColor: Color? get() {
+        val raw = AppConfigStore.setting("t_turn_glow_color", "").trim()
+        return if (raw.isBlank()) null else parseConfigColor(raw, Color(0xFFFFD400))
+    }
+
     // ---- Token animation (panel Game tab > "Token animation"). "none" = pehle jaisa, koi badlav nahi ----
     val moveFx: String get() = AppConfigStore.setting("t_token_move_fx", "none").trim().ifBlank { "none" }   // none | glow | ring | pulse
     val landFx: String get() = AppConfigStore.setting("t_token_land_fx", "none").trim().ifBlank { "none" }   // none | pop | bounce | ripple

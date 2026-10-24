@@ -11,6 +11,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.withStyle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 
@@ -71,6 +73,31 @@ fun VoicePartyMainScreen(navController: NavController) {
                 offsetY = GMAIL_OFFSET_Y
             )
         }
+
+        // Privacy Policy link — login buttons ke neeche
+        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+        val policyText = androidx.compose.ui.text.buildAnnotatedString {
+            append("By continuing, you agree to our ")
+            pushStringAnnotation(tag = "policy", annotation = com.voiceludo.app.net.HTTP_BASE + "/privacy")
+            withStyle(androidx.compose.ui.text.SpanStyle(color = Color(0xFFFFD54F), textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline)) {
+                append("Privacy Policy")
+            }
+            pop()
+        }
+        androidx.compose.foundation.text.ClickableText(
+            text = policyText,
+            style = androidx.compose.ui.text.TextStyle(
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 12.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            ),
+            onClick = { offset ->
+                policyText.getStringAnnotations("policy", offset, offset).firstOrNull()?.let { uriHandler.openUri(it.item) }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(start = 28.dp, end = 28.dp, bottom = 36.dp)
+        )
     }
 }
 

@@ -172,7 +172,9 @@ private fun BoxTokenWithGlow(
     rocketAngle: Float = 0f,
     fxMoving: Boolean = false,
     fxLandTick: Int = 0,
-    fxKilled: Boolean = false
+    fxKilled: Boolean = false,
+    // Stack mein kai movable token hon to sirf sab se upar wala glow kare
+    showGlow: Boolean = true
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "tokenGlow")
     val glowScale by infiniteTransition.animateFloat(
@@ -342,18 +344,22 @@ private fun BoxTokenWithGlow(
             )
         }
         if (isMovable) {
-            val (glowStrong, glowSoft) = MOVABLE_GLOW.getValue(tokenColor)
+          if (showGlow && GameTuning.turnGlowOn) {
+            val (baseStrong, baseSoft) = MOVABLE_GLOW.getValue(tokenColor)
+            val glowStrong = GameTuning.turnGlowColor ?: baseStrong
+            val glowSoft = GameTuning.turnGlowColor?.copy(alpha = 0.85f) ?: baseSoft
+            val glowDia = tokenSizeDp * (GameTuning.turnGlowSizePct / 100f)
             // Outer expanding ring — background ke against sabse pehle nazar aata hai
             Box(
                 modifier = Modifier
-                    .size(tokenSizeDp * 1.55f)
+                    .size(glowDia)
                     .graphicsLayer { scaleX = ringScale; scaleY = ringScale; alpha = ringAlpha }
                     .border(2.dp, glowStrong, CircleShape)
             )
             // Andar wala solid glow halo — token ke seedha peeche, saturated aur zyada bright
             Box(
                 modifier = Modifier
-                    .size(tokenSizeDp * 1.55f)
+                    .size(glowDia)
                     .graphicsLayer { scaleX = glowScale; scaleY = glowScale }
                     .background(
                         Brush.radialGradient(
@@ -362,6 +368,7 @@ private fun BoxTokenWithGlow(
                         CircleShape
                     )
             )
+          }
         } else if (isCurrentTurn) {
             // Yeh device khud is token ko chala nahi sakta (kisi aur ki bari hai)
             // lekin sabko yeh pata chalna chahiye ke abhi kis ki bari hai — isliye
@@ -619,10 +626,32 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
         // hamesha ek hi, sthiir jagah par rahe chahe token kisi bhi cell mein ho
         // — isi se animateDpAsState purani se nayi position tak sahi se glide
         // kar pata hai, cell badalne par bhi.
-        pathGroups.values.flatten().forEach { t ->
+        // Jis player ki bari hai (aur jo yeh device chala raha hai) uske token stack mein sab se
+        // upar draw hote hain (movable sab se aakhir mein) — taake ek cell mein 2-3 token hon to
+        // ek token upar nazar aaye aur wahi glow kare. sortedBy stable hai, baaki ka order wahi rehta hai.
+        val orderedPathTokens = pathGroups.values.flatten().let { all ->
+            if (!GameTuning.stackTopOn) all else all.sortedBy { x ->
+                val mine = x.color == state.currentColor && x.color == state.myColor
+                when {
+                    mine && x.idx in state.movable -> 2
+                    mine -> 1
+                    else -> 0
+                }
+            }
+        }
+        // Har cell ka sab se upar wala movable token (glow sirf usi par)
+        val topMovableOfCell = HashMap<String, String>()
+        orderedPathTokens.forEach { x ->
+            if (x.color == state.currentColor && x.color == state.myColor &&
+                !state.isMoving.value && x.idx in state.movable
+            ) topMovableOfCell[x.cellKey] = "${x.color}_${x.idx}"
+        }
+        orderedPathTokens.forEach { t ->
             val group = pathGroups.getValue(t.cellKey)
             val total = group.size.coerceAtMost(4)
             val cfg = if (total <= 1) STACK_CONFIG.getValue(1) else STACK_CONFIG.getValue(4)
+            val stackSizePct = GameTuning.stackSizePct(total)
+            val spread = if (total <= 1) 1f else GameTuning.stackSpreadPct / 100f
             val cellLeftDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * t.col
             val cellTopDp = boardSizeDp * (BOARD_INSET_PCT / 100f) + cellDp * t.row
 
@@ -630,9 +659,9 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 val id = "${t.color}_${t.idx}"
                 val n = slotOf["${t.cellKey}|$id"] ?: 0
                 val off = cfg.offsets[n % cfg.offsets.size]
-                val rawTokenSizeDp = cellDp * (cfg.sizePct / 100f)
-                val centerX = cellLeftDp + cellDp * (off.first / 100f)
-                val centerY = cellTopDp + cellDp * (off.second / 100f)
+                val rawTokenSizeDp = cellDp * (stackSizePct / 100f)
+                val centerX = cellLeftDp + cellDp * ((50f + (off.first - 50f) * spread) / 100f)
+                val centerY = cellTopDp + cellDp * ((50f + (off.second - 50f) * spread) / 100f)
                 val targetX = centerX - rawTokenSizeDp / 2
                 val targetY = centerY - rawTokenSizeDp / 2
 
@@ -784,6 +813,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         animX = animX,
                         animY = animY + hopDy,
                         isMovable = isMovable,
+                        showGlow = total <= 1 || topMovableOfCell[t.cellKey] == "${t.color}_${t.idx}",
                         isCurrentTurn = isCurrentTurn,
                         isRocketFlying = isRocketFlying,
                         rocketAngle = rocketAngle,

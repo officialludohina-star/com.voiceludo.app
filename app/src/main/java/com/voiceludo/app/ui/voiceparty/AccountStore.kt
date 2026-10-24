@@ -149,3 +149,10 @@ object AccountStore {
         prefs(context).edit().remove(SESSION_METHOD).remove(SESSION_CONTACT).apply()
     }
 }
+
+
+// Signup ka server-verified code Confirm screen se SetPassword screen tak le jane ke liye
+// (route mein code nahi daalte). Signup kaamyab hone ya screen band hone par saaf ho jata hai.
+object PendingSignupOtp {
+    @Volatile var code: String = ""
+}

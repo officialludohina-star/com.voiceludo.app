@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.voiceludo.app.net.BackendClient
-import com.voiceludo.app.net.EmailService
 import com.voiceludo.app.net.ServerMessage
 import com.voiceludo.app.net.SessionStore
 import com.voiceludo.app.ui.common.LoadingOverlay
@@ -66,9 +65,19 @@ fun ForgotPasswordScreen(navController: NavController) {
                     SessionStore.save(context, msg.playerId, msg.authToken, msg.name, msg.avatar, msg.coins, msg.diamonds, msg.gameId)
                     done = true
                 }
+                is ServerMessage.OtpSent -> {
+                    sendingEmail = false
+                    otpSent = true
+                    secondsLeft = 60
+                    errorText = ""
+                    scope.launch { while (secondsLeft > 0) { delay(1000); secondsLeft-- } }
+                }
                 is ServerMessage.Err -> {
                     loading = false
+                    sendingEmail = false
                     errorText = msg.message
+                    // Code galat/expire ho gaya to wapis code wale step par
+                    if (msg.message.startsWith("verification code", ignoreCase = true)) step = 1
                 }
                 is ServerMessage.ConnectionClosed -> {
                     if (loading) {
@@ -146,18 +155,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                                     } else if (!sendingEmail) {
                                         sendingEmail = true
                                         errorText = ""
-                                        val otp = AccountStore.generateOtp()
-                                        EmailService.sendOtp(email, otp) { success ->
-                                            sendingEmail = false
-                                            otpSent = true
-                                            secondsLeft = 60
-                                            if (!success) {
-                                                errorText = "Email bhejne mein masla hua — dobara try karein."
-                                            }
-                                            scope.launch {
-                                                while (secondsLeft > 0) { delay(1000); secondsLeft-- }
-                                            }
-                                        }
+                                        BackendClient.requestPasswordReset(email.trim())
                                     }
                                 },
                                 modifier = Modifier.width(84.dp).height(44.dp)
@@ -177,11 +175,6 @@ fun ForgotPasswordScreen(navController: NavController) {
                             color = Color(0xFF0a7a42), fontWeight = FontWeight.Bold, fontSize = 11.sp,
                             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
                         )
-                        Text(
-                            "Didn't receive it? Please check your Spam or Junk folder.",
-                            color = Color(0xFF6b8f7a), fontSize = 10.sp,
-                            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
-                        )
                     }
 
                     if (errorText.isNotEmpty()) {
@@ -198,7 +191,8 @@ fun ForgotPasswordScreen(navController: NavController) {
                         onClick = {
                             when {
                                 email.isBlank() -> errorText = "Please enter your email address."
-                                !AccountStore.verifyOtp(code) -> errorText = "Incorrect verification code. Please try again."
+                                !otpSent -> errorText = "Please tap Obtain to receive a verification code."
+                                code.isBlank() -> errorText = "Please enter the verification code."
                                 else -> { errorText = ""; step = 2 }
                             }
                         },
@@ -253,7 +247,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                                 else -> {
                                     loading = true
                                     errorText = ""
-                                    BackendClient.resetPassword(email, newPass)
+                                    BackendClient.resetPassword(email.trim(), newPass, code.trim())
                                 }
                             }
                         },

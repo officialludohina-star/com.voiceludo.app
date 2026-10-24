@@ -17,7 +17,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.voiceludo.app.net.EmailService
+import com.voiceludo.app.net.BackendClient
+import com.voiceludo.app.net.ServerMessage
 
 private const val SIGNUP_BG = "file:///android_asset/img/login_bg.png"
 
@@ -32,6 +33,27 @@ fun GmailSignupScreen(navController: NavController) {
     var secondsLeft by remember { mutableStateOf(0) }
     var errorText by remember { mutableStateOf("") }
     var sendingEmail by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        val listener: (ServerMessage) -> Unit = { msg ->
+            when (msg) {
+                is ServerMessage.OtpSent -> {
+                    sendingEmail = false
+                    otpSent = true
+                    secondsLeft = 60
+                    errorText = ""
+                    scope.launch { while (secondsLeft > 0) { delay(1000); secondsLeft-- } }
+                }
+                is ServerMessage.Err -> {
+                    sendingEmail = false
+                    errorText = msg.message
+                }
+                else -> {}
+            }
+        }
+        BackendClient.addListener(listener)
+        onDispose { BackendClient.removeListener(listener) }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncImage(
@@ -78,21 +100,7 @@ fun GmailSignupScreen(navController: NavController) {
                                 } else if (!sendingEmail) {
                                     sendingEmail = true
                                     errorText = ""
-                                    val otp = AccountStore.generateOtp()
-                                    // Asal index.html ke email.js scene jaisa hi — yeh OTP
-                                    // seedha user ke Gmail par bhejta hai (EmailJS REST API se).
-                                    EmailService.sendOtp(email, otp) { success ->
-                                        sendingEmail = false
-                                        lastOtp = otp
-                                        otpSent = true
-                                        secondsLeft = 60
-                                        if (!success) {
-                                            errorText = "Could not send email — tap 'Obtain' again or try later."
-                                        }
-                                        scope.launch {
-                                            while (secondsLeft > 0) { delay(1000); secondsLeft-- }
-                                        }
-                                    }
+                                    BackendClient.requestSignupOtp(email.trim())
                                 }
                             },
                             modifier = Modifier.width(84.dp).height(44.dp)
@@ -116,11 +124,6 @@ fun GmailSignupScreen(navController: NavController) {
                         color = Color(0xFF0a7a42), fontWeight = FontWeight.Bold, fontSize = 11.sp,
                         modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
                     )
-                    Text(
-                        "Didn't receive it? Please check your Spam or Junk folder.",
-                        color = Color(0xFF6b8f7a), fontSize = 10.sp,
-                        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
-                    )
                 }
 
                 if (errorText.isNotEmpty()) {
@@ -142,9 +145,12 @@ fun GmailSignupScreen(navController: NavController) {
                     onClick = {
                         when {
                             email.isBlank() -> errorText = "Please enter your email address."
-                            !AccountStore.verifyOtp(code) -> errorText = "Incorrect verification code. Please try again."
-                            AccountStore.accountExists(context, "gmail", email) -> errorText = "An account with this email already exists. Please log in."
-                            else -> navController.navigate("vp_set_password/gmail/$email")
+                            !otpSent -> errorText = "Please tap Obtain to receive a verification code."
+                            code.isBlank() -> errorText = "Please enter the verification code."
+                            else -> {
+                                PendingSignupOtp.code = code.trim()
+                                navController.navigate("vp_set_password/gmail/${email.trim()}")
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp)

@@ -100,6 +100,7 @@ sealed class ServerMessage {
         val avatar: String
     ) : ServerMessage()
     data class Err(val message: String) : ServerMessage()
+    data class OtpSent(val message: String) : ServerMessage()
     data class Waiting(val message: String) : ServerMessage()
     data class Matched(
         val roomId: String,
@@ -335,7 +336,7 @@ object BackendClient {
     // socket band ho — taake kabhi bhi "pehle signup ya login karein" na aaye
     // jab user asal mein login hi ho.
     @Volatile private var authed = false
-    private val authBootstrapTypes = setOf("login", "signup", "resume", "loginWithToken", "resetPassword", "requestPasswordReset")
+    private val authBootstrapTypes = setOf("login", "signup", "resume", "loginWithToken", "resetPassword", "requestPasswordReset", "requestSignupOtp")
 
     private fun send(obj: JSONObject) {
         ensureConnected()
@@ -358,8 +359,18 @@ object BackendClient {
         }
     }
 
-    fun signup(email: String, password: String) {
-        send(JSONObject().put("type", "signup").put("email", email).put("password", password))
+    // Signup se pehle server khud email par 6-digit code bhejta hai (verify bhi server karta hai).
+    fun requestSignupOtp(email: String) {
+        send(JSONObject().put("type", "requestSignupOtp").put("email", email))
+    }
+
+    fun signup(email: String, password: String, otp: String) {
+        send(JSONObject().put("type", "signup").put("email", email).put("password", password).put("otp", otp))
+    }
+
+    // Forgot Password — server account check karta hai, code email karta hai aur baad mein khud verify karta hai.
+    fun requestPasswordReset(email: String) {
+        send(JSONObject().put("type", "requestPasswordReset").put("email", email))
     }
 
     fun login(email: String, password: String) {
@@ -371,8 +382,8 @@ object BackendClient {
     // ka naya password set kar deta hai. Jawab "auth" hi aata hai (naya
     // session token + coins/diamonds ke sath) — matlab reset hote hi user
     // turant logged-in bhi ho jata hai, dobara login karne ki zaroorat nahi.
-    fun resetPassword(email: String, newPassword: String) {
-        send(JSONObject().put("type", "resetPassword").put("email", email).put("password", newPassword))
+    fun resetPassword(email: String, newPassword: String, otp: String) {
+        send(JSONObject().put("type", "resetPassword").put("email", email).put("password", newPassword).put("otp", otp))
     }
 
     fun join(mode: String, bet: Int, players: Int, magic: Boolean) {
@@ -641,6 +652,7 @@ object BackendClient {
                     flushPending()
                     ServerMessage.Auth(playerId!!, gameId, authToken!!, coins, diamonds, myName, myAvatar)
                 }
+                "otpSent" -> ServerMessage.OtpSent(obj.optString("message"))
                 "error" -> {
                     val errText = obj.optString("message")
                     // resume nahi ho saka (game khatam / room nahi mila) — ab normal login se aage badho

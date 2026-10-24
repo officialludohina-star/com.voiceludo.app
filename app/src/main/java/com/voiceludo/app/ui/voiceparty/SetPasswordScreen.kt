@@ -189,7 +189,7 @@ fun SetPasswordScreen(navController: NavController, method: String, contact: Str
                                 method == "gmail" -> {
                                     loading = true
                                     errorText = ""
-                                    BackendClient.signup(contact, newPass)
+                                    BackendClient.signup(contact, newPass, PendingSignupOtp.code)
                                 }
                                 else -> {
                                     // Mobile/Facebook abhi bekend par nahi hain (bekend sirf
