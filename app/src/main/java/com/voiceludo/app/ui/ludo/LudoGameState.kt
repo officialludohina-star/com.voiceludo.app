@@ -522,6 +522,7 @@ class LudoGameState(
     // ---- UI se call hota hai jab self kisi movable token par tap kare ----
     fun tapToken(tokenIdx: Int) {
         if (currentColor != myColor || tokenIdx !in movable || isMoving.value) return
+        rollChoice.value = null // pichle token ka adha-khula number popup band
         val legalIdxs = legalRollsForToken(currentColor, tokenIdx)
         if (legalIdxs.isEmpty()) return
         val distinctValues = legalIdxs.map { savedRolls[it] }.distinct()

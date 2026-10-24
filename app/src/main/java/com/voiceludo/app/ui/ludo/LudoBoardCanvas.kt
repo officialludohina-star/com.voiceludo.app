@@ -417,7 +417,12 @@ private fun BoxTokenWithGlow(
 }
 
 @Composable
-fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) {
+fun LudoBoardCanvas(
+    state: LudoGameState,
+    // Board screen par itne degree ghumaya hua hai — popup ko seedha (upright) rakhne ke liye
+    uprightDeg: Float = 0f,
+    onTokenTap: (LudoColor, Int) -> Unit
+) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
@@ -426,6 +431,8 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
         val boardSizeDp = maxWidth
         // Board ka 1 cell — HTML jaisa hi 1% inset ke sath (poore board ka 15waan hissa nahi)
         val cellDp: Dp = boardSizeDp * (CELL_PCT / 100f)
+        // Har token ka board-par center ("COLOR_idx" -> x,y) — number-chunne wala popup isi par khulta hai
+        val tokenCenters = HashMap<String, Pair<Dp, Dp>>()
 
         AsyncImage(
             model = GAME_BOARD_IMG,
@@ -664,6 +671,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 val centerY = cellTopDp + cellDp * ((50f + (off.second - 50f) * spread) / 100f)
                 val targetX = centerX - rawTokenSizeDp / 2
                 val targetY = centerY - rawTokenSizeDp / 2
+                tokenCenters["${t.color}_${t.idx}"] = centerX to centerY
 
                 val isMovable = t.color == state.currentColor &&
                     state.currentColor == state.myColor &&
@@ -844,6 +852,7 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                 val centerY = boardSizeDp * (topPct / 100f)
                 val targetX = centerX - tokenSizeDp / 2
                 val targetY = centerY - tokenSizeDp / 2
+                tokenCenters["${color}_$i"] = centerX to centerY
 
                 val isMovable = color == state.currentColor &&
                     state.currentColor == state.myColor &&
@@ -878,6 +887,45 @@ fun LudoBoardCanvas(state: LudoGameState, onTokenTap: (LudoColor, Int) -> Unit) 
                         contentDescription = "$color token $i",
                         onTap = { onTokenTap(color, i) }
                     )
+                }
+            }
+        }
+
+        // ---- Number chunne ka popup: 2+ alag saved numbers (jaise 6 aur 5) hon aur token par
+        // tap ho to poochna usi token ke UPAR hota hai (profile/dice ke paas nahi). Sirf ek number
+        // ho to tap par token seedha chal padta hai (LudoGameState.tapToken).
+        state.rollChoice.value?.let { choice ->
+            val c = tokenCenters["${state.myColor}_${choice.tokenIdx}"]
+            if (c != null) {
+                // 200dp ka wrapper token ke center par; board ghumne ke ulte rotate kar ke seedha rakha
+                Box(
+                    modifier = Modifier
+                        .offset(x = c.first - 100.dp, y = c.second - 100.dp)
+                        .size(200.dp)
+                        .graphicsLayer(rotationZ = -uprightDeg)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = (-40).dp)
+                            .background(Color(0xF20A1423), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .border(1.5.dp, Color(0xFFFFCC33), androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .padding(5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        choice.options.forEach { opt ->
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                    .background(Brush.verticalGradient(listOf(Color(0xFFFFEC66), Color(0xFFFFB300))))
+                                    .clickable { state.chooseRoll(opt) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("${opt.value}", color = Color(0xFF5A3100), fontWeight = androidx.compose.ui.text.font.FontWeight.Black, fontSize = 15.sp)
+                            }
+                        }
+                    }
                 }
             }
         }

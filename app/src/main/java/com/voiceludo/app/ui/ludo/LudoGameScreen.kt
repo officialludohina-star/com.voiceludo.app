@@ -299,7 +299,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 .cfgElement(gp + "Board")
                 .graphicsLayer(rotationZ = rotationSteps * 90f)
         ) {
-            LudoBoardCanvas(state) { _, idx ->
+            LudoBoardCanvas(state, uprightDeg = rotationSteps * 90f) { _, idx ->
                 if (state.currentColor == state.myColor && !state.isMoving.value) {
                     state.tapToken(idx)
                 }
@@ -512,7 +512,14 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                 }
                 // Panel (Screens > Game board) se profile / dice ki jagah, size, animation
                 val profile = @Composable {
-                    Box(Modifier.cfgElement(gp + "Prof" + cornerKey)) { profileInner() }
+                    Box(Modifier.cfgElement(gp + "Prof" + cornerKey)) {
+                        profileInner()
+                        // Jis ki bari ho uske jama hue dice-numbers profile ke neeche (sab ko nazar aate hain)
+                        SavedRollsRow(
+                            state, color,
+                            Modifier.align(Alignment.BottomCenter).offset(y = 24.dp).cfgElement(gp + "Saved" + cornerKey)
+                        )
+                    }
                 }
                 val diceInner = @Composable {
                     // Sirf jis player ki abhi bari hai uska hi dice-box dikhta hai —
@@ -531,7 +538,10 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                             // NA aaye, chahe unhe pata ho ke kiski baari hai (dice-box
                             // aur token-glow se to sabko pata chal hi jata hai).
                             if (!state.gameOver.value && isSelf) {
-                                TurnArrow()
+                                // Panel se hilane layak (Screens > Game board > "Turn ka arrow")
+                                Box(Modifier.align(Alignment.TopCenter).cfgElement(gp + "Arrow" + cornerKey)) {
+                                    TurnArrow()
+                                }
                             }
                             PlayerDiceBox(
                                 // Har player apna alag stored dice-value dikhata hai (HTML jaisa) —
@@ -553,24 +563,8 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                                     !state.rollRequested.value,
                                 onClick = { scope.launch { state.rollDice() } }
                             )
-                            // Asal HTML ke gameDiceNum_${idx} badge jaisa — is turn mein ab tak
-                            // jama hue saved-rolls numbers ("6+4" jaisay) dice-box ke upar dikhata hai
-                            if (state.savedRolls.isNotEmpty()) {
-                                Text(
-                                    state.savedRolls.joinToString("+"),
-                                    color = Color(0xFF5A3100),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Black,
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .offset(y = (-8).dp)
-                                        .background(
-                                            Brush.verticalGradient(listOf(Color(0xFFFFEC66), Color(0xFFFFB300))),
-                                            RoundedCornerShape(6.dp)
-                                        )
-                                        .padding(horizontal = 5.dp, vertical = 1.dp)
-                                )
-                            }
+                            // Jama hue numbers ab profile ke neeche dice ki tasveer ke taur par dikhte hain
+                            // (SavedRollsRow) — sab players ko, taake opponent ko pata chale kitne number aaye.
                             // Diamonds se extra dice-roll khareedne wala badge — sirf apni bari
                             // mein, aur sirf jab tak is game mein is color ke liye lock (1000
                             // diamond cap) nahi ho chuka (cost > 0). Cost badge par hi dikhta
@@ -582,6 +576,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .offset(y = 16.dp)
+                                        .cfgElement(gp + "Diamond" + cornerKey) // panel se hilane layak
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(Color(0xF2143c64))
                                         .clickable { scope.launch { state.buyExtraRoll() } }
@@ -649,34 +644,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
             }
         }
 
-        // Asal HTML ke #rollChoicePopup jaisa — jab ek movable token ke liye ek se
-        // zyada ALAG saved number (jaisay 6 aur 4 dono) legal hon, player yahan se
-        // chuney ke kaunsa number is token par apply karna hai.
-        state.rollChoice.value?.let { choice ->
-            val popupScope = rememberCoroutineScope()
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 90.dp)
-                    .background(Color(0xF20A1423), RoundedCornerShape(10.dp))
-                    .border(1.5.dp, Color(0xFFFFCC33), RoundedCornerShape(10.dp))
-                    .padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                choice.options.forEach { opt ->
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Brush.verticalGradient(listOf(Color(0xFFFFEC66), Color(0xFFFFB300))))
-                            .clickable { popupScope.launch { state.chooseRoll(opt) } },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("${opt.value}", color = Color(0xFF5A3100), fontWeight = FontWeight.Black, fontSize = 15.sp)
-                    }
-                }
-            }
-        }
+        // Number chunne ka popup ab LudoBoardCanvas ke andar, tap kiye hue token ke upar khulta hai.
 
         if (state.gameOver.value) {
             // Admin panel ("Game over screen") ka background aur icons — result card ke neeche
@@ -1174,4 +1142,34 @@ private fun PlayerDiceBox(diceValue: Int, rolling: Boolean, isClickable: Boolean
             RemoteArt(face, imgMod, ContentScale.Fit, "dice")
         }
     }
+}
+
+
+// Jis player ki bari hai uske ab tak jama hue dice numbers, dice ki tasveer ke taur par (profile ke neeche).
+// Sab players ko nazar aate hain. Jagah/size panel (Screens > Game board > "Jama hue dice") se.
+@Composable
+private fun SavedRollsRow(state: LudoGameState, color: LudoColor, modifier: Modifier) {
+    if (state.gameOver.value || color != state.currentColor || state.savedRolls.isEmpty()) return
+    Row(
+        modifier = modifier.wrapContentWidth(Alignment.CenterHorizontally, unbounded = true),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        state.savedRolls.forEachIndexed { i, v ->
+            key(i, v) { SavedDie(v) }
+        }
+    }
+}
+
+@Composable
+private fun SavedDie(value: Int) {
+    val s = remember { Animatable(0.3f) }
+    LaunchedEffect(Unit) { s.animateTo(1f, tween(180)) }
+    AsyncImage(
+        model = GameTuning.diceFace(value, DICE_FACE_IMG[value] ?: ""),
+        contentDescription = "saved $value",
+        modifier = Modifier
+            .size(20.dp)
+            .graphicsLayer { scaleX = s.value; scaleY = s.value }
+    )
 }
