@@ -11,6 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -39,7 +44,18 @@ fun ConnectionStatusOverlay(modifier: Modifier = Modifier) {
     val hasInternet by NetworkMonitor.hasInternet.collectAsState()
     val connState by BackendClient.state.collectAsState()
 
-    val show = !hasInternet || connState != ConnState.CONNECTED
+    // Chhota sa wakfa (background se wapsi, network badalna) hone par banner baar baar na chamke:
+    // pehle thora intezaar, tabhi dikhao jab masla sach mein kuch der rahe.
+    val rawShow = !hasInternet || connState != ConnState.CONNECTED
+    var show by remember { mutableStateOf(false) }
+    LaunchedEffect(rawShow, hasInternet) {
+        if (rawShow) {
+            delay(if (!hasInternet) 1500L else 3500L)
+            show = true
+        } else {
+            show = false
+        }
+    }
     val message = when {
         !hasInternet -> "No internet — please check your connection"
         connState == ConnState.CONNECTING -> "Connecting to server..."

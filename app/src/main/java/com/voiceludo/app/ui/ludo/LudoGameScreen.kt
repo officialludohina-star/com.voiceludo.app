@@ -79,7 +79,7 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     // screen ne yeh BackendClient mein rakha tha jab "matched" message aaya tha.
     // Agar kisi wajah se yeh missing ho (jaisay process restart), wapis mode-select
     // par chale jate hain — game bina real room ke shuru nahi ho sakta.
-    val matched = remember { BackendClient.consumeLastMatch() }
+    val matched = remember { BackendClient.consumeLastMatch() ?: BackendClient.currentMatch }
     if (matched == null) {
         LaunchedEffect(Unit) { navController.popBackStack() }
         return
@@ -88,7 +88,8 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     val colorList = remember(matched) { matched.players.map { LudoColor.valueOf(it) } }
     val myColor = remember(matched) { LudoColor.valueOf(matched.color) }
     val state = remember(matched) {
-        LudoGameState(ludoMode, colorList, magic, myColor).apply {
+        // magic: hamesha SERVER ki state se (route ka argument nahi) — warna ek phone par rocket/dice nazar nahi aate
+        LudoGameState(ludoMode, colorList, matched.state.magicOn, myColor).apply {
             applyInitialSnapshot(matched.state)
             applyInitialProfiles(matched.profiles)
         }
@@ -154,6 +155,8 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
     // "wallet" event ka message (jeetne par "pot credit ho gaya", extra-roll
     // khareedne ki confirmation, waghera) — kuch second ke liye ek banner dikhata hai.
     var walletMsg by remember { mutableStateOf<String?>(null) }
+    // Mera seat auto par hai (server khud khel raha hai) — screen tap karne par khud control wapis.
+    var autoOn by remember { mutableStateOf(false) }
     DisposableEffect(matched) {
         val listener: (ServerMessage) -> Unit = { msg ->
             when (msg) {
@@ -187,7 +190,11 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                     val c = runCatching { LudoColor.valueOf(msg.color) }.getOrNull()
                     if (c != null) micStates[c] = msg.on
                 }
-                is ServerMessage.OpponentDisconnected -> walletMsg = "${msg.color} ka connection chala gaya — reconnect ka intezaar"
+                is ServerMessage.AutoMode -> {
+                    if (msg.color == matched.color) autoOn = msg.on
+                    else walletMsg = if (msg.on) "${msg.color} auto mode par hai" else "${msg.color} khud khel raha hai"
+                }
+                is ServerMessage.OpponentDisconnected -> walletMsg = "${msg.color} ka connection chala gaya — server auto khel raha hai"
                 is ServerMessage.OpponentReconnected -> walletMsg = "${msg.color} wapis aa gaya"
                 else -> {}
             }
@@ -195,7 +202,11 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
         BackendClient.addListener(listener)
         onDispose {
             BackendClient.removeListener(listener)
-            BackendClient.leaveRoom()
+            // Activity ko system ne band/dobara banaya (background, rotation, waghera) to game CHHODNI NAHI —
+            // server auto-play karta hai. Sirf user ke jaan-boojh kar nikalne (Exit/back) par leave.
+            val act = appCtx as? android.app.Activity
+            val systemTeardown = act != null && (act.isChangingConfigurations || act.isFinishing || act.isDestroyed)
+            if (!systemTeardown) BackendClient.leaveRoom()
         }
     }
 
@@ -740,6 +751,33 @@ fun LudoGameScreen(navController: NavController, mode: String, players: Int, mag
                     TextButton(onClick = { SoundManager.playClick(); showBetInfo = false }) { Text("Close") }
                 }
             )
+        }
+
+        // ---- AUTO mode: net gaya / app background gayi — server aapki taraf se khel raha hai.
+        // Screen par kahin bhi tap karo to khud control wapis mil jata hai. ----
+        if (autoOn) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable { SoundManager.playClick(); autoOn = false; BackendClient.sendAutoOff() },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .background(Color(0xFF1B1B1B).copy(alpha = 0.92f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 22.dp, vertical = 16.dp)
+                ) {
+                    Text("AUTO ON", color = Color(0xFFFFD400), fontWeight = FontWeight.Black, fontSize = 22.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Aapki game server khud khel raha hai.\nKhud khelne ke liye screen par tap karein.",
+                        color = Color.White, fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
         }
 
         // ---- Net drop overlay: "Reconnecting… Ns" (game peeche dikhti rehti hai,

@@ -157,6 +157,23 @@ class MainActivity : ComponentActivity() {
                         onDispose {}
                     }
 
+                    // Server "resumed" bheje (app kill/restart ke baad bhi chalti game mil gayi) aur hum
+                    // game screen par nahi hain to seedha usi game mein wapis jao.
+                    DisposableEffect(navController) {
+                        val resumeListener: com.voiceludo.app.net.ServerListener = { msg ->
+                            if (msg is ServerMessage.Resumed) {
+                                val route = navController.currentDestination?.route ?: ""
+                                if (!route.startsWith("ludo_game")) {
+                                    navController.navigate("ludo_game/${msg.mode.uppercase()}/${msg.players.size}/${msg.state.magicOn}/0") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                        }
+                        BackendClient.addListener(resumeListener)
+                        onDispose { BackendClient.removeListener(resumeListener) }
+                    }
+
                     // Pehle se saved session (auth_token) mile to "vp_splash" se shuru
                     // karte hain (jo khud-b-khud login try karti hai) — warna seedha
                     // "vp_main" (login/signup choose karne wali screen). Isi se woh purana
@@ -253,6 +270,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // App poori tarah background gayi (home, app-switch, screen off) — server is seat ko auto kar deta hai.
+    // (onStart/onStop use kiye, taake permission dialog jaisi cheezon par galti se "away" na jaye.)
+    override fun onStart() {
+        super.onStart()
+        BackendClient.onAppForeground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        BackendClient.onAppBackground()
     }
 
     override fun onPause() {

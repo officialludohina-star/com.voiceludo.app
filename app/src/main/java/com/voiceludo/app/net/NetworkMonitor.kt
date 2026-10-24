@@ -33,6 +33,8 @@ object NetworkMonitor {
         cm.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 _hasInternet.value = true
+                // Net wapis aaya aur game-server se connection toota hua hai to turant dobara jodo
+                BackendClient.onNetworkBack()
             }
             override fun onLost(network: Network) {
                 _hasInternet.value = isCurrentlyConnected(cm)

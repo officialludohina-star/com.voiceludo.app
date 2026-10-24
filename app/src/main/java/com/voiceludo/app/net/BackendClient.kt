@@ -135,6 +135,8 @@ sealed class ServerMessage {
     data class Chat(val color: String, val name: String, val text: String) : ServerMessage()
     // Kisi player ne apna mic on/off kiya — us ki profile par icon badalne ke liye.
     data class Mic(val color: String, val on: Boolean) : ServerMessage()
+    // Kisi seat par server auto-play chala raha hai (player ka net gaya / app background gayi) ya band hua.
+    data class AutoMode(val color: String, val on: Boolean) : ServerMessage()
     // Har turn (roll ya pending-move) shuru hote hi bekend yeh bhejta hai — us
     // player ki profile par 12-second countdown ring dikhane ke liye.
     data class TurnTimer(val color: String, val seconds: Int) : ServerMessage()
@@ -201,6 +203,12 @@ object BackendClient {
     fun consumeCachedOpponentProfiles(): List<ServerMessage.OpponentProfile> =
         opponentProfileCache.values.toList()
     fun clearOpponentProfileCache() { opponentProfileCache.clear() }
+
+    // Chalti game ka match — consumeLastMatch() ke baad bhi bacha rehta hai, taake activity dobara bane
+    // ya app khulte hi server "resumed" bheje to game screen isi se dobara ban jaye.
+    @Volatile var currentMatch: ServerMessage.Matched? = null; private set
+    // Aakhri baar server se koi message kab aaya (mara hua socket pehchanne ke liye).
+    @Volatile private var lastRxAt = 0L
 
     // inGame — jab tak yeh true hai, agar socket kabhi bhi (net jaane se) toot
     // kar wapis khule to onOpen khud "resume" bhej deta hai (naya login/signup
@@ -287,6 +295,7 @@ object BackendClient {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                lastRxAt = System.currentTimeMillis()
                 parse(text)?.let { notify(it) }
             }
 
@@ -416,7 +425,33 @@ object BackendClient {
 
     fun leaveRoom() {
         inGame = false
+        currentMatch = null
         send(JSONObject().put("type", "leave"))
+    }
+
+    // App background gayi — game chal rahi ho to server ko batao (woh is seat par auto-play chala deta hai).
+    fun sendAway() {
+        if (!inGame || !authed) return
+        socket?.send(JSONObject().put("type", "away").toString())
+    }
+
+    // Player ne screen tap kar ke auto hata diya — ab khud khelega.
+    fun sendAutoOff() {
+        if (!inGame) return
+        send(JSONObject().put("type", "autoOff"))
+    }
+
+    fun onAppBackground() { sendAway() }
+
+    // App wapis aayi: connection mara hua ho to turant naya kholo (server seat wapis de deta hai).
+    fun onAppForeground() {
+        val stale = System.currentTimeMillis() - lastRxAt > 20_000
+        if (_state.value != ConnState.CONNECTED || (inGame && stale)) reconnect() else ensureConnected()
+    }
+
+    // Phone ka net wapis aaya.
+    fun onNetworkBack() {
+        if (_state.value != ConnState.CONNECTED) reconnect()
     }
 
     // reconnect() — user "Connect" button tap kare (network wapis check karne
@@ -606,7 +641,16 @@ object BackendClient {
                     flushPending()
                     ServerMessage.Auth(playerId!!, gameId, authToken!!, coins, diamonds, myName, myAvatar)
                 }
-                "error" -> ServerMessage.Err(obj.optString("message"))
+                "error" -> {
+                    val errText = obj.optString("message")
+                    // resume nahi ho saka (game khatam / room nahi mila) — ab normal login se aage badho
+                    if (errText.startsWith("no active game") || errText.startsWith("this game is no longer")) {
+                        inGame = false
+                        currentMatch = null
+                        authToken?.let { t -> socket?.send(JSONObject().put("type", "loginWithToken").put("auth_token", t).toString()) }
+                    }
+                    ServerMessage.Err(errText)
+                }
                 "waiting" -> ServerMessage.Waiting(obj.optString("message"))
                 "matched" -> {
                     if (obj.has("coins")) coins = obj.optLong("coins")
@@ -623,6 +667,7 @@ object BackendClient {
                         profiles = parseProfiles(obj.optJSONObject("profiles"))
                     )
                     lastMatch = m
+                    currentMatch = m
                     m
                 }
                 "resumed" -> {
@@ -632,7 +677,7 @@ object BackendClient {
                     inGame = true
                     authed = true
                     flushPending()
-                    ServerMessage.Resumed(
+                    val rsm = ServerMessage.Resumed(
                         roomId = obj.optString("room_id"),
                         color = obj.optString("color"),
                         players = jsonArrayToStringList(obj.optJSONArray("players")),
@@ -643,6 +688,8 @@ object BackendClient {
                         state = snap,
                         profiles = parseProfiles(obj.optJSONObject("profiles"))
                     )
+                    currentMatch = ServerMessage.Matched(rsm.roomId, rsm.color, rsm.players, rsm.mode, rsm.bet, rsm.coins, rsm.state, rsm.profiles)
+                    rsm
                 }
                 "opponentDisconnected" -> ServerMessage.OpponentDisconnected(obj.optString("color"), obj.optInt("seconds", 60))
                 "opponentReconnected" -> ServerMessage.OpponentReconnected(obj.optString("color"))
@@ -674,6 +721,7 @@ object BackendClient {
                     text = obj.optString("message")
                 )
                 "mic" -> ServerMessage.Mic(obj.optString("color"), obj.optBoolean("on", true))
+                "autoMode" -> ServerMessage.AutoMode(obj.optString("color"), obj.optBoolean("on", false))
                 "turnTimer" -> ServerMessage.TurnTimer(obj.optString("color"), obj.optInt("seconds", 12))
                 "forceLogout" -> {
                     // Server ne yeh (purana) connection band kar diya — apni local
@@ -683,6 +731,7 @@ object BackendClient {
                     gameId = 0
                     authToken = null
                     inGame = false
+                    currentMatch = null
                     authed = false
                     ServerMessage.ForceLogout(obj.optString("message"))
                 }
